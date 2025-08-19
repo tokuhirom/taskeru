@@ -44,15 +44,11 @@ func ListCommand() error {
 			statusColor = "\x1b[34m" // blue
 		case internal.StatusWONTDO:
 			statusColor = "\x1b[90m" // gray
-		default:
-			statusColor = "" // no color for TODO
+		default: // TODO
+			statusColor = "\x1b[37m" // white
 		}
 		
-		if statusColor != "" {
-			fmt.Printf("%d. %s%-7s %s %s\x1b[0m", i+1, statusColor, status, priority, task.Title)
-		} else {
-			fmt.Printf("%d. %-7s %s %s", i+1, status, priority, task.Title)
-		}
+		fmt.Printf("%d. %s%-7s %s %s\x1b[0m", i+1, statusColor, status, priority, task.Title)
 		
 		// Display projects with colors
 		if len(task.Projects) > 0 {

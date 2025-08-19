@@ -347,14 +347,10 @@ func (m InteractiveTaskList) View() string {
 		case StatusWONTDO:
 			statusColor = "\x1b[90m" // gray
 		default: // TODO
-			statusColor = ""
+			statusColor = "\x1b[37m" // white
 		}
 		
-		if statusColor != "" {
-			line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
-		} else {
-			line = fmt.Sprintf("%s%-7s %s %s", cursor, status, priority, task.Title)
-		}
+		line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
 		
 		// Add projects with cyan color
 		if len(task.Projects) > 0 {
@@ -368,10 +364,8 @@ func (m InteractiveTaskList) View() string {
 			if task.CompletedAt != nil {
 				line += fmt.Sprintf(" \x1b[90m(%s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
 			}
-			if statusColor != "" {
-				line += "\x1b[0m" // Close the status color
-			}
 		}
+		line += "\x1b[0m" // Always close the status color
 		line += "\n"
 		s.WriteString(line)
 	}
