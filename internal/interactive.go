@@ -234,6 +234,18 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmDelete = false
 			}
 			
+		case "g":
+			// Jump to first task
+			if !m.confirmDelete && !m.inputMode {
+				m.cursor = 0
+			}
+			
+		case "G":
+			// Jump to last task
+			if !m.confirmDelete && !m.inputMode && len(m.tasks) > 0 {
+				m.cursor = len(m.tasks) - 1
+			}
+			
 		case "c":
 			// Create new task
 			if !m.confirmDelete {
@@ -382,7 +394,7 @@ func (m InteractiveTaskList) View() string {
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
-		s.WriteString("\n↑/k: up • ↓/j: down • s: cycle status • space: toggle done • a: show all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
+		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • s: cycle status • space: toggle done • a: show all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
 		if m.showAll {
 			s.WriteString(" [ALL]")
 		}
