@@ -28,13 +28,15 @@ taskeru/
 ### Task構造体
 ```go
 type Task struct {
-    ID       string    `json:"id"`
-    Title    string    `json:"title"`
-    Created  time.Time `json:"created"`
-    DueDate  *time.Time `json:"due_date,omitempty"`
-    Priority string    `json:"priority,omitempty"` // "high", "medium", "low"
-    Status   string    `json:"status"`             // "todo", "in_progress", "done"
-    Note     string    `json:"note,omitempty"`     // Markdown形式
+    ID          string     `json:"id"`
+    Title       string     `json:"title"`
+    Created     time.Time  `json:"created"`
+    Updated     time.Time  `json:"updated"`
+    CompletedAt *time.Time `json:"completed_at,omitempty"`
+    DueDate     *time.Time `json:"due_date,omitempty"`
+    Priority    string     `json:"priority,omitempty"` // "high", "medium", "low"
+    Status      string     `json:"status"`             // "todo", "in_progress", "done"
+    Note        string     `json:"note,omitempty"`     // Markdown形式
 }
 ```
 
@@ -170,6 +172,63 @@ func editTaskNote(task *Task) error {
 - 完了タスクのアーカイブ
 - カラー表示
 - 統計情報表示
+
+## todo.txt仕様との機能比較と今後の実装予定
+
+現在のtaskeruは独自のJSON形式を採用していますが、todo.txt形式の標準的な機能のうち、以下の機能が未実装です：
+
+### 1. プロジェクト機能 (+Project)
+- **todo.txt仕様**: `+` で始まるプロジェクトタグを複数設定可能
+- **実装例**: `(A) レポート作成 +仕事 +Q4目標`
+- **利点**: タスクをプロジェクト単位で分類・フィルタリング可能
+- **実装案**: Task構造体に `Projects []string` フィールドを追加
+
+### 2. コンテキスト機能 (@Context)
+- **todo.txt仕様**: `@` で始まるコンテキストタグを複数設定可能
+- **実装例**: `買い物に行く @外出 @週末`
+- **利点**: 場所や状況に応じたタスクの分類
+- **実装案**: Task構造体に `Contexts []string` フィールドを追加
+
+### 3. ~~完了日の専用記録~~ ✅ 実装済み
+- **todo.txt仕様**: 完了時に専用の完了日フィールド
+- **実装例**: `x 2024-01-15 2024-01-10 タスク名` (完了日 作成日 タスク)
+- **現状**: `CompletedAt *time.Time` フィールドで実装済み
+- **備考**: `SetStatus("done")`時に自動的に完了時刻が記録される
+
+### 4. 優先度の詳細化
+- **todo.txt仕様**: (A)〜(Z)の26段階の優先度
+- **現状**: high/medium/lowの3段階
+- **実装案**: Priority を `string` から `rune` (A-Z) に変更、または両方サポート
+
+### 5. カスタムメタデータ (key:value)
+- **todo.txt仕様**: 任意のkey:valueペアを設定可能
+- **実装例**: `due:2024-01-01 recur:weekly estimate:2h`
+- **利点**: 柔軟な情報追加が可能
+- **実装案**: Task構造体に `Metadata map[string]string` フィールドを追加
+
+### 6. 自動ソート機能
+- **todo.txt仕様**: 優先度順 → 未完了 → 完了の順で自動ソート
+- **現状**: 作成順のまま表示
+- **実装案**: インタラクティブモードにソートオプションを追加
+
+### 7. 繰り返しタスク
+- **todo.txt拡張仕様**: `recur:` タグで繰り返し設定
+- **実装例**: `recur:daily`, `recur:weekly`, `recur:monthly`
+- **利点**: 定期的なタスクの自動生成
+- **実装案**: メタデータとして実装し、完了時に次のタスクを自動生成
+
+### 8. タスク間の依存関係
+- **todo.txt拡張仕様**: `depends:` タグで依存関係を設定
+- **実装例**: `depends:task-id-123`
+- **利点**: タスクの順序関係を明確化
+- **実装案**: メタデータとして実装し、UIで依存関係を可視化
+
+### 9. タグによるフィルタリング
+- **機能**: プロジェクトやコンテキストでフィルタリング
+- **実装例**: `taskeru ls +仕事` でプロジェクト「仕事」のタスクのみ表示
+- **実装案**: listコマンドにフィルタオプションを追加
+
+これらの機能を段階的に実装することで、taskeruをより強力で柔軟なタスク管理ツールに進化させることができます。
 
 ## テスト方針
 
