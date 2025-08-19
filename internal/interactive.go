@@ -95,8 +95,8 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.inputCursor < len(runes) {
 					m.inputBuffer = string(runes[:m.inputCursor])
 				}
-			case tea.KeyBackspace:
-				// Remove character before cursor
+			case tea.KeyCtrlH, tea.KeyBackspace:
+				// Remove character before cursor (Ctrl+H is traditional backspace)
 				if m.inputCursor > 0 && len(runes) > 0 {
 					m.inputBuffer = string(append(runes[:m.inputCursor-1], runes[m.inputCursor:]...))
 					m.inputCursor--
@@ -320,7 +320,7 @@ func (m InteractiveTaskList) View() string {
 		}
 		
 		s.WriteString("\n\n📝 New task title: " + displayStr)
-		s.WriteString("\n\nEnter: create • Esc: cancel • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+K: kill • Ctrl+D: delete")
+		s.WriteString("\n\nEnter: create • Esc: cancel • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace • Ctrl+K: kill • Ctrl+D: delete")
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
