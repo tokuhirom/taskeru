@@ -108,24 +108,30 @@ func FilterVisibleTasks(tasks []Task, showAll bool) []Task {
 	return visible
 }
 
-// ExtractProjectsFromTitle extracts project tags (+project) from title and returns cleaned title and projects
+// ExtractProjectsFromTitle extracts project tags (+project) from the end of title and returns cleaned title and projects
 func ExtractProjectsFromTitle(title string) (string, []string) {
-	projectRegex := regexp.MustCompile(`\+(\S+)`)
-	matches := projectRegex.FindAllStringSubmatch(title, -1)
+	// Extract project tags only from the end of the string
+	// Pattern: (whitespace or start) followed by +project at the end
+	projectEndRegex := regexp.MustCompile(`(\s+|^)\+(\S+)\s*$`)
 	
 	var projects []string
-	seenProjects := make(map[string]bool)
+	cleanTitle := title
 	
-	for _, match := range matches {
-		project := match[1]
-		if !seenProjects[project] {
-			projects = append(projects, project)
-			seenProjects[project] = true
+	// Keep extracting project tags from the end until no more are found
+	for {
+		match := projectEndRegex.FindStringSubmatch(cleanTitle)
+		if match == nil {
+			break
 		}
+		
+		// Add project to the beginning (since we're extracting from the end)
+		// match[2] is the project name (match[1] is the whitespace or start)
+		projects = append([]string{match[2]}, projects...)
+		
+		// Remove the matched project tag from the string
+		cleanTitle = projectEndRegex.ReplaceAllString(cleanTitle, "")
 	}
 	
-	// Remove project tags from title
-	cleanTitle := projectRegex.ReplaceAllString(title, "")
 	cleanTitle = strings.TrimSpace(cleanTitle)
 	
 	return cleanTitle, projects
