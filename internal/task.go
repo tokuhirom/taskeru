@@ -138,10 +138,19 @@ func (t *Task) IsOldCompleted() bool {
 		return false
 	}
 	
-	// Check if completed before today (yesterday or earlier)
+	// Check if completed before today (with 4 AM as day boundary)
+	// Tasks completed after 4 AM yesterday are still "today's tasks"
 	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	return t.CompletedAt.Before(today)
+	
+	// Calculate today's 4 AM cutoff
+	todayAt4AM := time.Date(now.Year(), now.Month(), now.Day(), 4, 0, 0, 0, now.Location())
+	
+	// If current time is before 4 AM, use yesterday's 4 AM as the cutoff
+	if now.Before(todayAt4AM) {
+		todayAt4AM = todayAt4AM.AddDate(0, 0, -1)
+	}
+	
+	return t.CompletedAt.Before(todayAt4AM)
 }
 
 func FilterVisibleTasks(tasks []Task, showAll bool) []Task {
