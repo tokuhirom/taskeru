@@ -33,7 +33,26 @@ func ListCommand() error {
 		status := task.DisplayStatus()
 		priority := task.DisplayPriority()
 		
-		fmt.Printf("%d. %s %s %s", i+1, status, priority, task.Title)
+		// Add color based on status
+		var statusColor string
+		switch task.Status {
+		case internal.StatusDONE:
+			statusColor = "\x1b[32m" // green
+		case internal.StatusDOING:
+			statusColor = "\x1b[33m" // yellow
+		case internal.StatusWAITING:
+			statusColor = "\x1b[34m" // blue
+		case internal.StatusWONTDO:
+			statusColor = "\x1b[90m" // gray
+		default:
+			statusColor = "" // no color for TODO
+		}
+		
+		if statusColor != "" {
+			fmt.Printf("%d. %s%-7s %s %s\x1b[0m", i+1, statusColor, status, priority, task.Title)
+		} else {
+			fmt.Printf("%d. %-7s %s %s", i+1, status, priority, task.Title)
+		}
 		
 		// Display projects with colors
 		if len(task.Projects) > 0 {
@@ -45,8 +64,8 @@ func ListCommand() error {
 			fmt.Printf(" %s", strings.Join(projectStrs, " "))
 		}
 		
-		// Display completion date for done tasks (dim gray)
-		if task.Status == "done" && task.CompletedAt != nil {
+		// Display completion date for done/wontdo tasks (dim gray)
+		if (task.Status == internal.StatusDONE || task.Status == internal.StatusWONTDO) && task.CompletedAt != nil {
 			// Use dim gray color (ANSI 90) for completed date
 			fmt.Printf(" \x1b[90m(completed %s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
 		} else if task.DueDate != nil {

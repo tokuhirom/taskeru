@@ -144,16 +144,16 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			
 		case " ":
-			// Toggle task status between todo and done
+			// Quick toggle between TODO and DONE (most common transition)
 			if m.cursor < len(m.tasks) {
 				// Find the task in allTasks and update it
 				taskID := m.tasks[m.cursor].ID
 				for i := range m.allTasks {
 					if m.allTasks[i].ID == taskID {
-						if m.allTasks[i].Status == "done" {
-							m.allTasks[i].SetStatus("todo")
+						if m.allTasks[i].Status == StatusDONE {
+							m.allTasks[i].SetStatus(StatusTODO)
 						} else {
-							m.allTasks[i].SetStatus("done")
+							m.allTasks[i].SetStatus(StatusDONE)
 						}
 						// Update the filtered view
 						m.tasks[m.cursor] = m.allTasks[i]
@@ -255,6 +255,46 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showProjectView = true
 				return m, tea.Quit
 			}
+			
+		case "s":
+			// Cycle through statuses
+			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
+				taskIdx := -1
+				for i, t := range m.allTasks {
+					if t.ID == m.tasks[m.cursor].ID {
+						taskIdx = i
+						break
+					}
+				}
+				
+				if taskIdx >= 0 {
+					currentStatus := m.allTasks[taskIdx].Status
+					allStatuses := GetAllStatuses()
+					
+					// Find current status index
+					currentIdx := 0
+					for i, s := range allStatuses {
+						if s == currentStatus {
+							currentIdx = i
+							break
+						}
+					}
+					
+					// Cycle to next status
+					nextIdx := (currentIdx + 1) % len(allStatuses)
+					m.allTasks[taskIdx].SetStatus(allStatuses[nextIdx])
+					
+					// Update filtered view
+					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+					
+					// Adjust cursor if necessary
+					if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
+						m.cursor = len(m.tasks) - 1
+					}
+					
+					m.modified = true
+				}
+			}
 		}
 	}
 	
@@ -282,13 +322,26 @@ func (m InteractiveTaskList) View() string {
 		status := task.DisplayStatus()
 		priority := task.DisplayPriority()
 		
-		// Add color and emoji for done tasks
+		// Add color based on status
 		var line string
-		if task.Status == "done" {
-			// Green color (ANSI escape code) and checkmark emoji
-			line = fmt.Sprintf("%s\x1b[32m✅ %s %s", cursor, priority, task.Title)
+		var statusColor string
+		switch task.Status {
+		case StatusDONE:
+			statusColor = "\x1b[32m" // green
+		case StatusDOING:
+			statusColor = "\x1b[33m" // yellow
+		case StatusWAITING:
+			statusColor = "\x1b[34m" // blue
+		case StatusWONTDO:
+			statusColor = "\x1b[90m" // gray
+		default: // TODO
+			statusColor = ""
+		}
+		
+		if statusColor != "" {
+			line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
 		} else {
-			line = fmt.Sprintf("%s%s %s %s", cursor, status, priority, task.Title)
+			line = fmt.Sprintf("%s%-7s %s %s", cursor, status, priority, task.Title)
 		}
 		
 		// Add projects with cyan color
@@ -298,12 +351,14 @@ func (m InteractiveTaskList) View() string {
 			}
 		}
 		
-		// Add completion date for done tasks (dim gray)
-		if task.Status == "done" {
+		// Add completion date for done/wontdo tasks (dim gray)
+		if task.Status == StatusDONE || task.Status == StatusWONTDO {
 			if task.CompletedAt != nil {
 				line += fmt.Sprintf(" \x1b[90m(%s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
 			}
-			line += "\x1b[0m" // Close the green color
+			if statusColor != "" {
+				line += "\x1b[0m" // Close the status color
+			}
 		}
 		line += "\n"
 		s.WriteString(line)
@@ -327,7 +382,7 @@ func (m InteractiveTaskList) View() string {
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
-		s.WriteString("\n↑/k: up • ↓/j: down • space: toggle done • a: show all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
+		s.WriteString("\n↑/k: up • ↓/j: down • s: cycle status • space: toggle done • a: show all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
 		if m.showAll {
 			s.WriteString(" [ALL]")
 		}

@@ -21,6 +21,20 @@ type Task struct {
 	Projects    []string   `json:"projects,omitempty"`
 }
 
+// Available task statuses
+const (
+	StatusTODO    = "TODO"
+	StatusDOING   = "DOING"  
+	StatusWAITING = "WAITING"
+	StatusDONE    = "DONE"
+	StatusWONTDO  = "WONTDO"
+)
+
+// GetAllStatuses returns all available task statuses
+func GetAllStatuses() []string {
+	return []string{StatusTODO, StatusDOING, StatusWAITING, StatusDONE, StatusWONTDO}
+}
+
 func NewTask(title string) *Task {
 	now := time.Now()
 	return &Task{
@@ -28,7 +42,7 @@ func NewTask(title string) *Task {
 		Title:   title,
 		Created: now,
 		Updated: now,
-		Status:  "todo",
+		Status:  StatusTODO,
 	}
 }
 
@@ -39,19 +53,31 @@ func (t *Task) SetPriority(priority string) {
 }
 
 func (t *Task) SetStatus(status string) {
-	if status == "todo" || status == "in_progress" || status == "done" {
-		oldStatus := t.Status
-		t.Status = status
-		now := time.Now()
-		t.Updated = now
-		
-		// Record completion time when marking as done
-		if status == "done" && oldStatus != "done" {
-			t.CompletedAt = &now
-		} else if status != "done" && oldStatus == "done" {
-			// Clear completion time when unmarking as done
-			t.CompletedAt = nil
+	// Validate status
+	validStatuses := GetAllStatuses()
+	isValid := false
+	for _, s := range validStatuses {
+		if status == s {
+			isValid = true
+			break
 		}
+	}
+	
+	if !isValid {
+		return
+	}
+	
+	oldStatus := t.Status
+	t.Status = status
+	now := time.Now()
+	t.Updated = now
+	
+	// Record completion time when marking as done or wontdo
+	if (status == StatusDONE || status == StatusWONTDO) && oldStatus != StatusDONE && oldStatus != StatusWONTDO {
+		t.CompletedAt = &now
+	} else if status != StatusDONE && status != StatusWONTDO && (oldStatus == StatusDONE || oldStatus == StatusWONTDO) {
+		// Clear completion time when unmarking as done/wontdo
+		t.CompletedAt = nil
 	}
 }
 
@@ -60,14 +86,7 @@ func (t *Task) SetDueDate(dueDate time.Time) {
 }
 
 func (t *Task) DisplayStatus() string {
-	switch t.Status {
-	case "done":
-		return "✓"
-	case "in_progress":
-		return "→"
-	default:
-		return "○"
-	}
+	return t.Status
 }
 
 func (t *Task) DisplayPriority() string {
@@ -84,7 +103,7 @@ func (t *Task) DisplayPriority() string {
 }
 
 func (t *Task) IsOldCompleted() bool {
-	if t.Status != "done" || t.CompletedAt == nil {
+	if (t.Status != StatusDONE && t.Status != StatusWONTDO) || t.CompletedAt == nil {
 		return false
 	}
 	

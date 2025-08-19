@@ -41,7 +41,7 @@ type Task struct {
 ```
 
 ### ストレージ仕様
-- データファイル: `~/todo.json` (環境変数`TASKERU_FILE`で変更可能)
+- データファイル: `~/todo.json` (`-t` オプションまたは環境変数`TASKERU_FILE`で変更可能)
 - 形式: JSONL（JSON Lines）形式 - 1行1タスク
 - エディタでの編集がしやすいよう、各タスクは独立した行に保存
 
