@@ -7,7 +7,7 @@ import (
 
 func Execute() {
 	if len(os.Args) == 1 {
-		if err := ListCommand(); err != nil {
+		if err := InteractiveCommand(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -48,13 +48,14 @@ Usage:
 
 Commands:
   add <title>    Add a new task
-  ls, list       List all tasks (default when no command given)
+  ls, list       List all tasks
   edit, e        Edit a task interactively
   help           Show this help message
 
 Examples:
-  taskeru                    # List all tasks
+  taskeru                    # Interactive mode (space to toggle done, e to edit)
   taskeru add "Buy milk"     # Add a new task
+  taskeru ls                 # List all tasks
   taskeru edit               # Select and edit a task
 
 Environment Variables:

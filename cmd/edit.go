@@ -16,6 +16,7 @@ func EditCommand() error {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 	
+	// Show all tasks in edit mode (including old completed ones)
 	if len(tasks) == 0 {
 		fmt.Println("No tasks to edit.")
 		return nil

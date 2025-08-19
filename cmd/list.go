@@ -13,15 +13,22 @@ func ListCommand() error {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 	
-	if len(tasks) == 0 {
+	// Filter out old completed tasks by default
+	visibleTasks := internal.FilterVisibleTasks(tasks, false)
+	
+	if len(visibleTasks) == 0 {
 		fmt.Println("No tasks found.")
+		hiddenCount := len(tasks) - len(visibleTasks)
+		if hiddenCount > 0 {
+			fmt.Printf("(%d old completed tasks hidden)\n", hiddenCount)
+		}
 		return nil
 	}
 	
 	fmt.Println("Tasks:")
 	fmt.Println("------")
 	
-	for i, task := range tasks {
+	for i, task := range visibleTasks {
 		status := task.DisplayStatus()
 		priority := task.DisplayPriority()
 		
@@ -48,6 +55,11 @@ func ListCommand() error {
 				fmt.Printf("   └─ %s\n", lines[0])
 			}
 		}
+	}
+	
+	hiddenCount := len(tasks) - len(visibleTasks)
+	if hiddenCount > 0 {
+		fmt.Printf("\n(%d old completed tasks hidden)\n", hiddenCount)
 	}
 	
 	return nil

@@ -20,6 +20,17 @@ func GetTaskFilePath() string {
 	return filepath.Join(home, "todo.json")
 }
 
+func GetTrashFilePath() string {
+	if path := os.Getenv("TASKERU_TRASH_FILE"); path != "" {
+		return filepath.Clean(path)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "trash.json"
+	}
+	return filepath.Join(home, "trash.json")
+}
+
 func LoadTasks() ([]Task, error) {
 	filePath := GetTaskFilePath()
 	file, err := os.Open(filePath)
@@ -168,4 +179,85 @@ func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updat
 	}
 
 	return SaveTasks(tasks)
+}
+
+// SaveDeletedTasksToTrash saves deleted tasks to trash.json
+func SaveDeletedTasksToTrash(deletedTasks []Task) error {
+	if len(deletedTasks) == 0 {
+		return nil
+	}
+	
+	trashPath := GetTrashFilePath()
+	
+	// Load existing trash tasks
+	existingTrash := []Task{}
+	file, err := os.Open(trashPath)
+	if err == nil {
+		defer file.Close()
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line == "" {
+				continue
+			}
+			var task Task
+			if err := json.Unmarshal([]byte(line), &task); err == nil {
+				existingTrash = append(existingTrash, task)
+			}
+		}
+	}
+	
+	// Mark deleted tasks with deletion time
+	now := time.Now()
+	for i := range deletedTasks {
+		// Store deletion time in Updated field
+		deletedTasks[i].Updated = now
+	}
+	
+	// Append deleted tasks to existing trash
+	allTrash := append(existingTrash, deletedTasks...)
+	
+	// Write all trash tasks
+	tempFile, err := os.CreateTemp(filepath.Dir(trashPath), ".trash-*.tmp")
+	if err != nil {
+		return err
+	}
+	tempPath := tempFile.Name()
+	
+	defer func() {
+		tempFile.Close()
+		os.Remove(tempPath)
+	}()
+	
+	writer := bufio.NewWriter(tempFile)
+	for _, task := range allTrash {
+		jsonData, err := json.Marshal(task)
+		if err != nil {
+			return err
+		}
+		if _, err := writer.Write(jsonData); err != nil {
+			return err
+		}
+		if _, err := writer.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+	
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+	
+	if err := tempFile.Sync(); err != nil {
+		return err
+	}
+	
+	if err := tempFile.Close(); err != nil {
+		return err
+	}
+	
+	if err := os.Rename(tempPath, trashPath); err != nil {
+		return err
+	}
+	
+	return nil
 }
