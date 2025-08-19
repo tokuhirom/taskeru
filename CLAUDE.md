@@ -152,18 +152,35 @@ func editTaskNote(task *Task) error {
 
 ## コマンド仕様
 
+### グローバルオプション
+- `-t <file>`: タスクファイルのパスを指定（TASKERU_FILE環境変数より優先）
+
 ### add コマンド
 - タスクを追加
 - UUIDで一意のIDを生成
 - デフォルトステータスは"todo"
+- `+project` 形式でプロジェクトタグをサポート
+- 例: `taskeru add "タスク名 +work +urgent"`
 
 ### ls/list コマンド
 - タスク一覧を表示
-- 引数なしのデフォルト動作
+- プロジェクトはシアン色で表示
+- 古い完了タスクは自動的に非表示
 
 ### edit/e コマンド  
 - インタラクティブUIでタスク選択
 - Markdownエディタで編集
+
+### インタラクティブモード（引数なし）
+- `j/k` または `↑/↓`: カーソル移動
+- `space`: タスクの完了/未完了切り替え
+- `a`: 全タスク表示（古い完了タスクも含む）
+- `c`: 新規タスク作成（プロジェクトタグ対応）
+- `e`: 選択したタスクを編集
+- `d`: タスク削除（確認あり）
+- `p`: プロジェクトビュー表示
+- `r`: タスク一覧を再読み込み
+- `q`: 終了
 
 ## 今後の拡張可能性
 
@@ -251,10 +268,24 @@ golangci-lint run
 
 ## テスト実行時の注意事項
 
-**重要**: テストやデバッグを実行する際は、必ず環境変数 `TASKERU_FILE` を設定して、実際のユーザーデータ (`~/todo.json`) を使用しないようにしてください。
+**重要**: テストやデバッグを実行する際は、実際のユーザーデータ (`~/todo.json`) を使用しないよう、以下のいずれかの方法でファイルパスを指定してください。
+
+### 1. -t オプションを使用（推奨）
 
 ```bash
-# テスト用の一時ファイルを使用
+# -t オプションで一時ファイルを指定
+./taskeru -t /tmp/test-todo.json add "テストタスク"
+./taskeru -t /tmp/test-todo.json ls
+./taskeru -t /tmp/test-todo.json  # インタラクティブモード
+
+# テスト後はファイルを削除
+rm /tmp/test-todo.json
+```
+
+### 2. 環境変数を使用
+
+```bash
+# 環境変数で指定
 export TASKERU_FILE=/tmp/test-todo.json
 ./taskeru add "テストタスク"
 ./taskeru ls
@@ -262,9 +293,12 @@ export TASKERU_FILE=/tmp/test-todo.json
 # またはコマンドごとに指定
 TASKERU_FILE=/tmp/test-todo.json ./taskeru add "テストタスク"
 TASKERU_FILE=/tmp/test-todo.json ./taskeru ls
-
-# テスト後はファイルを削除
-rm /tmp/test-todo.json
 ```
+
+### オプションの優先順位
+
+1. `-t` オプション（最優先）
+2. `TASKERU_FILE` 環境変数
+3. デフォルト `~/todo.json`
 
 これにより、実際のタスクデータを誤って変更・削除することを防げます。
