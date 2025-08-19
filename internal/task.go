@@ -2,6 +2,7 @@ package internal
 
 import (
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,9 +48,44 @@ func NewTask(title string) *Task {
 }
 
 func (t *Task) SetPriority(priority string) {
-	if priority == "high" || priority == "medium" || priority == "low" {
-		t.Priority = priority
+	// Accept single letter A-Z or empty string
+	if len(priority) == 0 {
+		t.Priority = ""
+		return
 	}
+	if len(priority) == 1 {
+		r := rune(priority[0])
+		if r >= 'A' && r <= 'Z' {
+			t.Priority = priority
+			t.Updated = time.Now()
+		}
+	}
+}
+
+// IncreasePriority increases priority (A is highest, Z is lowest)
+func (t *Task) IncreasePriority() {
+	if t.Priority == "" {
+		t.Priority = "C" // Start from C when no priority
+	} else if len(t.Priority) == 1 {
+		r := rune(t.Priority[0])
+		if r > 'A' {
+			t.Priority = string(r - 1)
+		}
+	}
+	t.Updated = time.Now()
+}
+
+// DecreasePriority decreases priority (A is highest, Z is lowest)
+func (t *Task) DecreasePriority() {
+	if t.Priority == "" {
+		t.Priority = "D" // Start from D when no priority
+	} else if len(t.Priority) == 1 {
+		r := rune(t.Priority[0])
+		if r < 'Z' {
+			t.Priority = string(r + 1)
+		}
+	}
+	t.Updated = time.Now()
 }
 
 func (t *Task) SetStatus(status string) {
@@ -90,16 +126,11 @@ func (t *Task) DisplayStatus() string {
 }
 
 func (t *Task) DisplayPriority() string {
-	switch t.Priority {
-	case "high":
-		return "!!!"
-	case "medium":
-		return "!!"
-	case "low":
-		return "!"
-	default:
+	if t.Priority == "" {
 		return "   "
 	}
+	// Display as [A], [B], etc.
+	return "[" + t.Priority + "]"
 }
 
 func (t *Task) IsOldCompleted() bool {
@@ -185,4 +216,36 @@ func FilterTasksByProject(tasks []Task, project string) []Task {
 		}
 	}
 	return filtered
+}
+
+// GetPriorityValue returns numeric value for sorting (lower is higher priority)
+func GetPriorityValue(priority string) float64 {
+	if priority == "" {
+		// No priority sorts between C and D
+		// C = 2.0, D = 3.0, so we use 2.5
+		return 2.5
+	}
+	if len(priority) == 1 {
+		r := rune(priority[0])
+		if r >= 'A' && r <= 'Z' {
+			return float64(int(r) - int('A'))
+		}
+	}
+	return 100 // Very low priority for invalid values
+}
+
+// SortTasks sorts tasks by priority (A-Z), then by update time (newest first)
+func SortTasks(tasks []Task) {
+	sort.Slice(tasks, func(i, j int) bool {
+		// First sort by priority
+		iPriority := GetPriorityValue(tasks[i].Priority)
+		jPriority := GetPriorityValue(tasks[j].Priority)
+		
+		if iPriority != jPriority {
+			return iPriority < jPriority // Lower value = higher priority
+		}
+		
+		// Same priority, sort by update time (newest first)
+		return tasks[i].Updated.After(tasks[j].Updated)
+	})
 }

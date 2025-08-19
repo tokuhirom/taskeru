@@ -25,6 +25,8 @@ type InteractiveTaskList struct {
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
+	// Sort tasks before displaying
+	SortTasks(tasks)
 	filteredTasks := FilterVisibleTasks(tasks, false)
 	return &InteractiveTaskList{
 		allTasks:        tasks,
@@ -94,6 +96,44 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Kill to end of line
 				if m.inputCursor < len(runes) {
 					m.inputBuffer = string(runes[:m.inputCursor])
+				}
+			case tea.KeyTab:
+				// Tab completion for project names
+				if m.inputCursor == len(runes) { // Only complete at end of input
+					// Find the last '+' before cursor
+					lastPlusIdx := -1
+					for i := m.inputCursor - 1; i >= 0; i-- {
+						if runes[i] == '+' {
+							lastPlusIdx = i
+							break
+						}
+						if runes[i] == ' ' {
+							break // Stop if we hit a space
+						}
+					}
+					
+					if lastPlusIdx >= 0 && lastPlusIdx < m.inputCursor-1 {
+						// Get the partial project name
+						partial := string(runes[lastPlusIdx+1:m.inputCursor])
+						
+						// Get all existing projects
+						allProjects := GetAllProjects(m.allTasks)
+						
+						// Find matching projects
+						var matches []string
+						for _, project := range allProjects {
+							if strings.HasPrefix(project, partial) {
+								matches = append(matches, project)
+							}
+						}
+						
+						// If exactly one match, complete it
+						if len(matches) == 1 {
+							// Replace the partial with the full project name
+							m.inputBuffer = string(runes[:lastPlusIdx+1]) + matches[0]
+							m.inputCursor = len([]rune(m.inputBuffer))
+						}
+					}
 				}
 			case tea.KeyCtrlH, tea.KeyBackspace:
 				// Remove character before cursor (Ctrl+H is traditional backspace)
@@ -171,6 +211,8 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				oldCursorTaskID = m.tasks[m.cursor].ID
 			}
 			
+			// Re-sort and filter
+			SortTasks(m.allTasks)
 			m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
 			
 			// Try to maintain cursor position on the same task
@@ -307,6 +349,68 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.modified = true
 				}
 			}
+			
+		case "+":
+			// Increase priority
+			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
+				taskIdx := -1
+				currentTaskID := m.tasks[m.cursor].ID
+				for i, t := range m.allTasks {
+					if t.ID == currentTaskID {
+						taskIdx = i
+						break
+					}
+				}
+				
+				if taskIdx >= 0 {
+					m.allTasks[taskIdx].IncreasePriority()
+					
+					// Re-sort and update filtered view
+					SortTasks(m.allTasks)
+					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+					
+					// Find the task's new position and move cursor there
+					for i, task := range m.tasks {
+						if task.ID == currentTaskID {
+							m.cursor = i
+							break
+						}
+					}
+					
+					m.modified = true
+				}
+			}
+			
+		case "-":
+			// Decrease priority
+			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
+				taskIdx := -1
+				currentTaskID := m.tasks[m.cursor].ID
+				for i, t := range m.allTasks {
+					if t.ID == currentTaskID {
+						taskIdx = i
+						break
+					}
+				}
+				
+				if taskIdx >= 0 {
+					m.allTasks[taskIdx].DecreasePriority()
+					
+					// Re-sort and update filtered view
+					SortTasks(m.allTasks)
+					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+					
+					// Find the task's new position and move cursor there
+					for i, task := range m.tasks {
+						if task.ID == currentTaskID {
+							m.cursor = i
+							break
+						}
+					}
+					
+					m.modified = true
+				}
+			}
 		}
 	}
 	
@@ -384,11 +488,11 @@ func (m InteractiveTaskList) View() string {
 		}
 		
 		s.WriteString("\n\n📝 New task title: " + displayStr)
-		s.WriteString("\n\nEnter: create • Esc: cancel • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace • Ctrl+K: kill • Ctrl+D: delete")
+		s.WriteString("\n\nEnter: create • Esc: cancel • Tab: complete project • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace • Ctrl+K: kill • Ctrl+D: delete")
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
-		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • s: cycle status • space: toggle done • a: show all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
+		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • space: toggle done • a: all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
 		if m.showAll {
 			s.WriteString(" [ALL]")
 		}

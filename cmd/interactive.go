@@ -24,14 +24,44 @@ func InteractiveCommand() error {
 		
 		// Handle project view
 		if showProjectView {
-			if err := internal.ShowProjectView(tasks); err != nil {
+			projectTasks, projectModified, err := internal.ShowProjectView(tasks)
+			if err != nil {
 				fmt.Printf("Failed to show project view: %v\n", err)
+			}
+			if projectModified {
+				// Save the modified tasks
+				if err := internal.SaveTasks(projectTasks); err != nil {
+					fmt.Printf("Failed to save tasks: %v\n", err)
+				} else {
+					fmt.Println("Tasks updated from project view.")
+				}
 			}
 			continue // Go back to the list
 		}
 		
 		// Handle reload
 		if shouldReload {
+			// Save modifications before reloading if needed
+			if modified {
+				// Update the Updated timestamp for modified tasks
+				now := time.Now()
+				for i := range updatedTasks {
+					for j := range tasks {
+						if updatedTasks[i].ID == tasks[j].ID && 
+							(updatedTasks[i].Status != tasks[j].Status || 
+							 updatedTasks[i].Priority != tasks[j].Priority) {
+							updatedTasks[i].Updated = now
+							break
+						}
+					}
+				}
+				
+				if err := internal.SaveTasks(updatedTasks); err != nil {
+					fmt.Printf("Failed to save tasks before reload: %v\n", err)
+				} else {
+					fmt.Println("Saved changes before reloading...")
+				}
+			}
 			fmt.Println("Reloading tasks...")
 			continue
 		}
@@ -83,13 +113,15 @@ func InteractiveCommand() error {
 			modified = true
 		}
 		
-		// If tasks were modified (status toggled or deleted), save them
+		// If tasks were modified (status toggled, priority changed, or deleted), save them
 		if modified {
 			// Update the Updated timestamp for modified tasks
 			now := time.Now()
 			for i := range updatedTasks {
 				for j := range tasks {
-					if updatedTasks[i].ID == tasks[j].ID && updatedTasks[i].Status != tasks[j].Status {
+					if updatedTasks[i].ID == tasks[j].ID && 
+						(updatedTasks[i].Status != tasks[j].Status || 
+						 updatedTasks[i].Priority != tasks[j].Priority) {
 						updatedTasks[i].Updated = now
 						break
 					}

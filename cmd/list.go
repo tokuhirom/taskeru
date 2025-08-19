@@ -14,6 +14,9 @@ func ListCommand() error {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 	
+	// Sort tasks by priority and update time
+	internal.SortTasks(tasks)
+	
 	// Filter out old completed tasks by default
 	visibleTasks := internal.FilterVisibleTasks(tasks, false)
 	
