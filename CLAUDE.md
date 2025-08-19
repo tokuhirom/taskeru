@@ -189,3 +189,23 @@ go test ./...
 # リント
 golangci-lint run
 ```
+
+## テスト実行時の注意事項
+
+**重要**: テストやデバッグを実行する際は、必ず環境変数 `TASKERU_FILE` を設定して、実際のユーザーデータ (`~/todo.json`) を使用しないようにしてください。
+
+```bash
+# テスト用の一時ファイルを使用
+export TASKERU_FILE=/tmp/test-todo.json
+./taskeru add "テストタスク"
+./taskeru ls
+
+# またはコマンドごとに指定
+TASKERU_FILE=/tmp/test-todo.json ./taskeru add "テストタスク"
+TASKERU_FILE=/tmp/test-todo.json ./taskeru ls
+
+# テスト後はファイルを削除
+rm /tmp/test-todo.json
+```
+
+これにより、実際のタスクデータを誤って変更・削除することを防げます。

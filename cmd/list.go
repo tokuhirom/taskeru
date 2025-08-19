@@ -1,0 +1,77 @@
+package cmd
+
+import (
+	"fmt"
+	"time"
+
+	"taskeru/internal"
+)
+
+func ListCommand() error {
+	tasks, err := internal.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+	
+	if len(tasks) == 0 {
+		fmt.Println("No tasks found.")
+		return nil
+	}
+	
+	fmt.Println("Tasks:")
+	fmt.Println("------")
+	
+	for i, task := range tasks {
+		status := task.DisplayStatus()
+		priority := task.DisplayPriority()
+		
+		fmt.Printf("%d. %s %s %s", i+1, status, priority, task.Title)
+		
+		if task.DueDate != nil {
+			dueIn := time.Until(*task.DueDate)
+			if dueIn < 0 {
+				fmt.Printf(" (overdue)")
+			} else if dueIn < 24*time.Hour {
+				fmt.Printf(" (due today)")
+			} else if dueIn < 48*time.Hour {
+				fmt.Printf(" (due tomorrow)")
+			} else {
+				fmt.Printf(" (due %s)", task.DueDate.Format("2006-01-02"))
+			}
+		}
+		
+		fmt.Println()
+		
+		if task.Note != "" {
+			lines := getFirstNLines(task.Note, 1)
+			if len(lines) > 0 && lines[0] != "" {
+				fmt.Printf("   └─ %s\n", lines[0])
+			}
+		}
+	}
+	
+	return nil
+}
+
+func getFirstNLines(text string, n int) []string {
+	lines := []string{}
+	current := ""
+	
+	for _, r := range text {
+		if r == '\n' {
+			lines = append(lines, current)
+			current = ""
+			if len(lines) >= n {
+				break
+			}
+		} else {
+			current += string(r)
+		}
+	}
+	
+	if current != "" && len(lines) < n {
+		lines = append(lines, current)
+	}
+	
+	return lines
+}
