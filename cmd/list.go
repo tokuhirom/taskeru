@@ -45,7 +45,11 @@ func ListCommand() error {
 			fmt.Printf(" %s", strings.Join(projectStrs, " "))
 		}
 		
-		if task.DueDate != nil {
+		// Display completion date for done tasks (dim gray)
+		if task.Status == "done" && task.CompletedAt != nil {
+			// Use dim gray color (ANSI 90) for completed date
+			fmt.Printf(" \x1b[90m(completed %s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
+		} else if task.DueDate != nil {
 			dueIn := time.Until(*task.DueDate)
 			if dueIn < 0 {
 				fmt.Printf(" (overdue)")

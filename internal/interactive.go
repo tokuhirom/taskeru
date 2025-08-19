@@ -298,9 +298,12 @@ func (m InteractiveTaskList) View() string {
 			}
 		}
 		
-		// Close the green color if it's a done task
+		// Add completion date for done tasks (dim gray)
 		if task.Status == "done" {
-			line += "\x1b[0m"
+			if task.CompletedAt != nil {
+				line += fmt.Sprintf(" \x1b[90m(%s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
+			}
+			line += "\x1b[0m" // Close the green color
 		}
 		line += "\n"
 		s.WriteString(line)
