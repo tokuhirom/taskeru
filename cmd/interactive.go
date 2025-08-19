@@ -17,9 +17,17 @@ func InteractiveCommand() error {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
 		
-		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, err := internal.ShowInteractiveTaskList(tasks)
+		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, showProjectView, err := internal.ShowInteractiveTaskList(tasks)
 		if err != nil {
 			return fmt.Errorf("failed to show interactive list: %w", err)
+		}
+		
+		// Handle project view
+		if showProjectView {
+			if err := internal.ShowProjectView(tasks); err != nil {
+				fmt.Printf("Failed to show project view: %v\n", err)
+			}
+			continue // Go back to the list
 		}
 		
 		// Handle reload
@@ -35,11 +43,20 @@ func InteractiveCommand() error {
 		
 		// Handle new task creation
 		if newTaskTitle != "" {
-			newTask := internal.NewTask(newTaskTitle)
+			// Extract projects from title
+			cleanTitle, projects := internal.ExtractProjectsFromTitle(newTaskTitle)
+			
+			newTask := internal.NewTask(cleanTitle)
+			newTask.Projects = projects
+			
 			if err := internal.AddTask(newTask); err != nil {
 				fmt.Printf("Failed to create task: %v\n", err)
 			} else {
-				fmt.Printf("Task created: %s\n", newTaskTitle)
+				fmt.Printf("Task created: %s", cleanTitle)
+				if len(projects) > 0 {
+					fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
+				}
+				fmt.Println()
 			}
 			continue // Go back to the list
 		}

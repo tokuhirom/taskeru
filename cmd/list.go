@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"taskeru/internal"
@@ -33,6 +34,16 @@ func ListCommand() error {
 		priority := task.DisplayPriority()
 		
 		fmt.Printf("%d. %s %s %s", i+1, status, priority, task.Title)
+		
+		// Display projects with colors
+		if len(task.Projects) > 0 {
+			var projectStrs []string
+			for _, project := range task.Projects {
+				// Use cyan color for projects
+				projectStrs = append(projectStrs, fmt.Sprintf("\x1b[36m+%s\x1b[0m", project))
+			}
+			fmt.Printf(" %s", strings.Join(projectStrs, " "))
+		}
 		
 		if task.DueDate != nil {
 			dueIn := time.Until(*task.DueDate)

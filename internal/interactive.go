@@ -8,36 +8,38 @@ import (
 )
 
 type InteractiveTaskList struct {
-	allTasks       []Task
-	tasks          []Task
-	cursor         int
-	modified       bool
-	showAll        bool
-	quit           bool
-	confirmDelete  bool
-	deletedTaskIDs []string
-	inputMode      bool
-	inputBuffer    string
-	inputCursor    int // Cursor position in input buffer
-	newTaskTitle   string
-	shouldReload   bool
+	allTasks        []Task
+	tasks           []Task
+	cursor          int
+	modified        bool
+	showAll         bool
+	quit            bool
+	confirmDelete   bool
+	deletedTaskIDs  []string
+	inputMode       bool
+	inputBuffer     string
+	inputCursor     int // Cursor position in input buffer
+	newTaskTitle    string
+	shouldReload    bool
+	showProjectView bool
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
 	filteredTasks := FilterVisibleTasks(tasks, false)
 	return &InteractiveTaskList{
-		allTasks:       tasks,
-		tasks:          filteredTasks,
-		cursor:         0,
-		modified:       false,
-		showAll:        false,
-		confirmDelete:  false,
-		deletedTaskIDs: []string{},
-		inputMode:      false,
-		inputBuffer:    "",
-		inputCursor:    0,
-		newTaskTitle:   "",
-		shouldReload:   false,
+		allTasks:        tasks,
+		tasks:           filteredTasks,
+		cursor:          0,
+		modified:        false,
+		showAll:         false,
+		confirmDelete:   false,
+		deletedTaskIDs:  []string{},
+		inputMode:       false,
+		inputBuffer:     "",
+		inputCursor:     0,
+		newTaskTitle:    "",
+		shouldReload:    false,
+		showProjectView: false,
 	}
 }
 
@@ -246,6 +248,13 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.shouldReload = true
 				return m, tea.Quit
 			}
+			
+		case "p":
+			// Show project view
+			if !m.confirmDelete && !m.inputMode {
+				m.showProjectView = true
+				return m, tea.Quit
+			}
 		}
 	}
 	
@@ -277,10 +286,23 @@ func (m InteractiveTaskList) View() string {
 		var line string
 		if task.Status == "done" {
 			// Green color (ANSI escape code) and checkmark emoji
-			line = fmt.Sprintf("%s\x1b[32m✅ %s %s\x1b[0m\n", cursor, priority, task.Title)
+			line = fmt.Sprintf("%s\x1b[32m✅ %s %s", cursor, priority, task.Title)
 		} else {
-			line = fmt.Sprintf("%s%s %s %s\n", cursor, status, priority, task.Title)
+			line = fmt.Sprintf("%s%s %s %s", cursor, status, priority, task.Title)
 		}
+		
+		// Add projects with cyan color
+		if len(task.Projects) > 0 {
+			for _, project := range task.Projects {
+				line += fmt.Sprintf(" \x1b[36m+%s\x1b[0m", project)
+			}
+		}
+		
+		// Close the green color if it's a done task
+		if task.Status == "done" {
+			line += "\x1b[0m"
+		}
+		line += "\n"
 		s.WriteString(line)
 	}
 	
@@ -302,7 +324,7 @@ func (m InteractiveTaskList) View() string {
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
-		s.WriteString("\n↑/k: up • ↓/j: down • space: toggle done • a: show all • c: create • e: edit • d: delete • r: reload • q: quit")
+		s.WriteString("\n↑/k: up • ↓/j: down • space: toggle done • a: show all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
 		if m.showAll {
 			s.WriteString(" [ALL]")
 		}
@@ -345,21 +367,25 @@ func (m InteractiveTaskList) ShouldReload() bool {
 	return m.shouldReload
 }
 
-func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, error) {
+func (m InteractiveTaskList) ShouldShowProjectView() bool {
+	return m.showProjectView
+}
+
+func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, bool, error) {
 	model := NewInteractiveTaskList(tasks)
 	p := tea.NewProgram(model)
 	
 	result, err := p.Run()
 	if err != nil {
-		return nil, false, nil, nil, "", false, err
+		return nil, false, nil, nil, "", false, false, err
 	}
 	
 	finalModel := result.(InteractiveTaskList)
 	
 	// Check if user wants to edit a task
 	if finalModel.ShouldEdit() {
-		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
+		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), finalModel.ShouldShowProjectView(), nil
 	}
 	
-	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
+	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), finalModel.ShouldShowProjectView(), nil
 }

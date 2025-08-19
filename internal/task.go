@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +18,7 @@ type Task struct {
 	Priority    string     `json:"priority,omitempty"`
 	Status      string     `json:"status"`
 	Note        string     `json:"note,omitempty"`
+	Projects    []string   `json:"projects,omitempty"`
 }
 
 func NewTask(title string) *Task {
@@ -103,4 +106,58 @@ func FilterVisibleTasks(tasks []Task, showAll bool) []Task {
 		}
 	}
 	return visible
+}
+
+// ExtractProjectsFromTitle extracts project tags (+project) from title and returns cleaned title and projects
+func ExtractProjectsFromTitle(title string) (string, []string) {
+	projectRegex := regexp.MustCompile(`\+(\S+)`)
+	matches := projectRegex.FindAllStringSubmatch(title, -1)
+	
+	var projects []string
+	seenProjects := make(map[string]bool)
+	
+	for _, match := range matches {
+		project := match[1]
+		if !seenProjects[project] {
+			projects = append(projects, project)
+			seenProjects[project] = true
+		}
+	}
+	
+	// Remove project tags from title
+	cleanTitle := projectRegex.ReplaceAllString(title, "")
+	cleanTitle = strings.TrimSpace(cleanTitle)
+	
+	return cleanTitle, projects
+}
+
+// GetAllProjects returns all unique projects from a list of tasks
+func GetAllProjects(tasks []Task) []string {
+	projectMap := make(map[string]bool)
+	var projects []string
+	
+	for _, task := range tasks {
+		for _, project := range task.Projects {
+			if !projectMap[project] {
+				projectMap[project] = true
+				projects = append(projects, project)
+			}
+		}
+	}
+	
+	return projects
+}
+
+// FilterTasksByProject returns tasks that belong to a specific project
+func FilterTasksByProject(tasks []Task, project string) []Task {
+	var filtered []Task
+	for _, task := range tasks {
+		for _, p := range task.Projects {
+			if p == project {
+				filtered = append(filtered, task)
+				break
+			}
+		}
+	}
+	return filtered
 }
