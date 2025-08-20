@@ -17,6 +17,15 @@ type ProjectView struct {
 	inProjectView   bool
 	quit            bool
 	modified        bool
+	showAll         bool
+	confirmDelete   bool
+	deletedTaskIDs  []string
+	editTask        *Task
+	newTaskTitle    string
+	inputMode       bool
+	inputBuffer     string
+	inputCursor     int
+	shouldReload    bool
 }
 
 func NewProjectView(tasks []Task) *ProjectView {
@@ -47,13 +56,22 @@ func NewProjectView(tasks []Task) *ProjectView {
 	}
 	
 	return &ProjectView{
-		allTasks:      tasks,
-		projects:      projects,
-		projectTasks:  projectTasks,
-		cursor:        0,
-		inProjectView: false,
-		quit:          false,
-		modified:      false,
+		allTasks:        tasks,
+		projects:        projects,
+		projectTasks:    projectTasks,
+		cursor:          0,
+		inProjectView:   false,
+		quit:            false,
+		modified:        false,
+		showAll:         false,
+		confirmDelete:   false,
+		deletedTaskIDs:  []string{},
+		editTask:        nil,
+		newTaskTitle:    "",
+		inputMode:       false,
+		inputBuffer:     "",
+		inputCursor:     0,
+		shouldReload:    false,
 	}
 }
 
@@ -64,9 +82,47 @@ func (m ProjectView) Init() tea.Cmd {
 func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle input mode for creating new tasks
+		if m.inputMode {
+			runes := []rune(m.inputBuffer)
+			
+			switch msg.Type {
+			case tea.KeyEnter:
+				// Create new task
+				if m.inputBuffer != "" {
+					m.newTaskTitle = m.inputBuffer
+					m.inputMode = false
+					m.inputBuffer = ""
+					m.inputCursor = 0
+					return m, tea.Quit // Exit to create the task
+				}
+			case tea.KeyEsc:
+				// Cancel input
+				m.inputMode = false
+				m.inputBuffer = ""
+				m.inputCursor = 0
+			case tea.KeyCtrlH, tea.KeyBackspace:
+				if m.inputCursor > 0 && len(runes) > 0 {
+					m.inputBuffer = string(append(runes[:m.inputCursor-1], runes[m.inputCursor:]...))
+					m.inputCursor--
+				}
+			case tea.KeyRunes:
+				newRunes := append(runes[:m.inputCursor], append(msg.Runes, runes[m.inputCursor:]...)...)
+				m.inputBuffer = string(newRunes)
+				m.inputCursor += len(msg.Runes)
+			case tea.KeySpace:
+				newRunes := append(runes[:m.inputCursor], append([]rune{' '}, runes[m.inputCursor:]...)...)
+				m.inputBuffer = string(newRunes)
+				m.inputCursor++
+			}
+			return m, nil
+		}
+		
 		switch msg.String() {
 		case "ctrl+c", "q", "esc":
-			if m.inProjectView {
+			if m.confirmDelete {
+				m.confirmDelete = false
+			} else if m.inProjectView {
 				// Go back to project list
 				m.inProjectView = false
 				m.selectedProject = ""
@@ -76,12 +132,12 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			
 		case "up", "k":
-			if m.cursor > 0 {
+			if !m.confirmDelete && !m.inputMode && m.cursor > 0 {
 				m.cursor--
 			}
 			
 		case "down", "j":
-			if m.cursor < m.getMaxCursor() {
+			if !m.confirmDelete && !m.inputMode && m.cursor < m.getMaxCursor() {
 				m.cursor++
 			}
 			
@@ -90,6 +146,78 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectedProject = m.projects[m.cursor]
 				m.inProjectView = true
 				m.cursor = 0
+			}
+			
+		case "a":
+			// Toggle show all tasks
+			if m.inProjectView && !m.confirmDelete && !m.inputMode {
+				m.showAll = !m.showAll
+				m.rebuildProjectTasksWithFilter()
+			}
+			
+		case "c":
+			// Create new task
+			if m.inProjectView && !m.confirmDelete {
+				m.inputMode = true
+				m.inputBuffer = ""
+				if m.selectedProject != "[No Project]" {
+					// Pre-populate with project tag
+					m.inputBuffer = " +" + m.selectedProject
+				}
+				m.inputCursor = 0
+			}
+			
+		case "e":
+			// Edit task
+			if m.inProjectView && m.cursor < len(m.projectTasks[m.selectedProject]) {
+				m.editTask = &m.projectTasks[m.selectedProject][m.cursor]
+				return m, tea.Quit
+			}
+			
+		case "d":
+			// Delete task - first press shows confirmation
+			if m.inProjectView && m.cursor < len(m.projectTasks[m.selectedProject]) && !m.confirmDelete {
+				m.confirmDelete = true
+			}
+			
+		case "y":
+			// Confirm deletion
+			if m.confirmDelete && m.inProjectView && m.cursor < len(m.projectTasks[m.selectedProject]) {
+				taskID := m.projectTasks[m.selectedProject][m.cursor].ID
+				m.deletedTaskIDs = append(m.deletedTaskIDs, taskID)
+				
+				// Remove from allTasks
+				newAllTasks := []Task{}
+				for _, t := range m.allTasks {
+					if t.ID != taskID {
+						newAllTasks = append(newAllTasks, t)
+					}
+				}
+				m.allTasks = newAllTasks
+				
+				// Rebuild project tasks
+				m.rebuildProjectTasksWithFilter()
+				
+				// Adjust cursor if necessary
+				if m.cursor >= len(m.projectTasks[m.selectedProject]) && len(m.projectTasks[m.selectedProject]) > 0 {
+					m.cursor = len(m.projectTasks[m.selectedProject]) - 1
+				}
+				
+				m.modified = true
+				m.confirmDelete = false
+			}
+			
+		case "n":
+			// Cancel deletion
+			if m.confirmDelete {
+				m.confirmDelete = false
+			}
+			
+		case "r":
+			// Reload tasks
+			if m.inProjectView && !m.confirmDelete && !m.inputMode {
+				m.shouldReload = true
+				return m, tea.Quit
 			}
 			
 		case " ":
@@ -274,6 +402,29 @@ func (m *ProjectView) rebuildProjectTasks() {
 	}
 }
 
+func (m *ProjectView) rebuildProjectTasksWithFilter() {
+	// Clear and rebuild project tasks after sorting
+	m.projectTasks = make(map[string][]Task)
+	var noProjectTasks []Task
+	
+	// Filter tasks based on showAll
+	filteredTasks := FilterVisibleTasks(m.allTasks, m.showAll)
+	
+	for _, task := range filteredTasks {
+		if len(task.Projects) == 0 {
+			noProjectTasks = append(noProjectTasks, task)
+		} else {
+			for _, project := range task.Projects {
+				m.projectTasks[project] = append(m.projectTasks[project], task)
+			}
+		}
+	}
+	
+	if len(noProjectTasks) > 0 {
+		m.projectTasks["[No Project]"] = noProjectTasks
+	}
+}
+
 func (m ProjectView) getMaxCursor() int {
 	if m.inProjectView {
 		tasks := m.projectTasks[m.selectedProject]
@@ -333,7 +484,32 @@ func (m ProjectView) View() string {
 			}
 		}
 		
-		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • space: toggle done • Esc: back • q: quit")
+		if m.inputMode {
+			// Display input with cursor
+			runes := []rune(m.inputBuffer)
+			var displayStr string
+			
+			if m.inputCursor == 0 {
+				displayStr = "_" + m.inputBuffer
+			} else if m.inputCursor >= len(runes) {
+				displayStr = m.inputBuffer + "_"
+			} else {
+				displayStr = string(runes[:m.inputCursor]) + "_" + string(runes[m.inputCursor:])
+			}
+			
+			s.WriteString("\n\n📝 New task title: " + displayStr)
+			s.WriteString("\n\nEnter: create • Esc: cancel")
+		} else if m.confirmDelete {
+			s.WriteString("\n\n⚠️  Delete this task? (y/n)")
+		} else {
+			s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • space: toggle done • a: show all • c: create • e: edit • d: delete • r: reload • Esc: back • q: quit")
+			if m.showAll {
+				s.WriteString(" [ALL]")
+			}
+			if m.modified {
+				s.WriteString(" • *modified*")
+			}
+		}
 	} else {
 		// Show project list
 		s.WriteString("Projects:\n")
@@ -376,15 +552,16 @@ func (m ProjectView) GetSelectedProject() string {
 	return m.selectedProject
 }
 
-func ShowProjectView(tasks []Task) ([]Task, bool, error) {
+func ShowProjectView(tasks []Task) ([]Task, bool, *Task, []string, string, bool, error) {
 	model := NewProjectView(tasks)
 	p := tea.NewProgram(model)
 	
 	result, err := p.Run()
 	if err != nil {
-		return nil, false, err
+		return nil, false, nil, nil, "", false, err
 	}
 	
 	finalModel := result.(ProjectView)
-	return finalModel.allTasks, finalModel.modified, nil
+	return finalModel.allTasks, finalModel.modified, finalModel.editTask, 
+		finalModel.deletedTaskIDs, finalModel.newTaskTitle, finalModel.shouldReload, nil
 }

@@ -24,16 +24,97 @@ func InteractiveCommand() error {
 		
 		// Handle project view
 		if showProjectView {
-			projectTasks, projectModified, err := internal.ShowProjectView(tasks)
+			projectTasks, projectModified, projectEditTask, projectDeletedIDs, projectNewTask, projectReload, err := internal.ShowProjectView(tasks)
 			if err != nil {
 				fmt.Printf("Failed to show project view: %v\n", err)
 			}
+			
+			// Handle reload request from project view
+			if projectReload {
+				if projectModified {
+					// Save before reloading
+					if err := internal.SaveTasks(projectTasks); err != nil {
+						fmt.Printf("Failed to save tasks before reload: %v\n", err)
+					}
+				}
+				fmt.Println("Reloading tasks...")
+				continue
+			}
+			
+			// Handle new task creation
+			if projectNewTask != "" {
+				cleanTitle, projects := internal.ExtractProjectsFromTitle(projectNewTask)
+				newTask := internal.NewTask(cleanTitle)
+				newTask.Projects = projects
+				
+				if err := internal.AddTask(newTask); err != nil {
+					fmt.Printf("Failed to create task: %v\n", err)
+				} else {
+					fmt.Printf("Task created: %s", cleanTitle)
+					if len(projects) > 0 {
+						fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
+					}
+					fmt.Println()
+				}
+				continue
+			}
+			
+			// Handle task deletion
+			if len(projectDeletedIDs) > 0 {
+				// Collect deleted tasks for trash
+				var deletedTasks []internal.Task
+				for _, id := range projectDeletedIDs {
+					for _, task := range tasks {
+						if task.ID == id {
+							deletedTasks = append(deletedTasks, task)
+							break
+						}
+					}
+				}
+				
+				// Save to trash
+				if err := internal.SaveDeletedTasksToTrash(deletedTasks); err != nil {
+					fmt.Printf("Warning: failed to save to trash: %v\n", err)
+				}
+				
+				projectModified = true
+			}
+			
+			// Handle task editing
+			if projectEditTask != nil {
+				originalUpdated := projectEditTask.Updated
+				
+				if err := editTaskNoteInteractive(projectEditTask); err != nil {
+					fmt.Printf("Editor error: %v\n", err)
+					continue
+				}
+				
+				if err := internal.UpdateTaskWithConflictCheck(projectEditTask.ID, originalUpdated, func(t *internal.Task) {
+					t.Title = projectEditTask.Title
+					t.Note = projectEditTask.Note
+				}); err != nil {
+					if strings.Contains(err.Error(), "modified by another process") {
+						fmt.Println("Conflict: task was modified by another process, please try again")
+					} else {
+						fmt.Printf("Failed to save task: %v\n", err)
+					}
+					continue
+				}
+				
+				fmt.Printf("Task updated: %s\n", projectEditTask.Title)
+				continue
+			}
+			
 			if projectModified {
 				// Save the modified tasks
 				if err := internal.SaveTasks(projectTasks); err != nil {
 					fmt.Printf("Failed to save tasks: %v\n", err)
 				} else {
-					fmt.Println("Tasks updated from project view.")
+					if len(projectDeletedIDs) > 0 {
+						fmt.Printf("%d task(s) deleted and moved to trash.\n", len(projectDeletedIDs))
+					} else {
+						fmt.Println("Tasks updated from project view.")
+					}
 				}
 			}
 			continue // Go back to the list
