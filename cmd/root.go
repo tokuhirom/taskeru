@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	
+	"taskeru/internal"
 )
 
 func Execute() {
@@ -31,7 +33,7 @@ func Execute() {
 	
 	// Set task file path if specified
 	if taskFile != "" {
-		os.Setenv("TASKERU_FILE", taskFile)
+		internal.SetTaskFilePath(taskFile)
 	}
 	
 	// Get command after flag parsing
@@ -101,7 +103,7 @@ Usage:
   taskeru [options] [command] [arguments]
 
 Options:
-  -t <file>      Path to task file (overrides TASKERU_FILE)
+  -t <file>      Path to task file (default: ~/todo.json)
 
 Commands:
   add <title>    Add a new task (supports +project tags)
@@ -130,6 +132,5 @@ Examples:
   taskeru -t /tmp/test.json add "Test task"  # Use different file
 
 Environment Variables:
-  TASKERU_FILE    Path to the task file (default: ~/todo.json)
   EDITOR          Editor to use for editing (default: vim)`)
 }

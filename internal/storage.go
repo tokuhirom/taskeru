@@ -9,10 +9,20 @@ import (
 	"time"
 )
 
+// Global variable to store the task file path from -t option
+var taskFilePath string
+
+// SetTaskFilePath sets the global task file path (from -t option)
+func SetTaskFilePath(path string) {
+	taskFilePath = path
+}
+
 func GetTaskFilePath() string {
-	if path := os.Getenv("TASKERU_FILE"); path != "" {
-		return filepath.Clean(path)
+	// Priority: -t option > default
+	if taskFilePath != "" {
+		return filepath.Clean(taskFilePath)
 	}
+	
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "todo.json"
@@ -21,9 +31,15 @@ func GetTaskFilePath() string {
 }
 
 func GetTrashFilePath() string {
-	if path := os.Getenv("TASKERU_TRASH_FILE"); path != "" {
-		return filepath.Clean(path)
+	// If -t option is used, put trash file in the same directory
+	if taskFilePath != "" {
+		dir := filepath.Dir(taskFilePath)
+		base := filepath.Base(taskFilePath)
+		ext := filepath.Ext(base)
+		name := base[:len(base)-len(ext)]
+		return filepath.Join(dir, name+".trash"+ext)
 	}
+	
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "trash.json"
