@@ -36,6 +36,7 @@ func EditCommand() error {
 	
 	if err := internal.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
 		t.Title = task.Title
+		t.Projects = task.Projects
 		t.Note = task.Note
 	}); err != nil {
 		if strings.Contains(err.Error(), "modified by another process") {
@@ -55,7 +56,12 @@ func editTaskNote(task *internal.Task) error {
 	}
 	defer os.Remove(tempFile.Name())
 	
-	content := fmt.Sprintf("# %s\n\n%s", task.Title, task.Note)
+	// Include projects in the title line
+	titleWithProjects := task.Title
+	for _, project := range task.Projects {
+		titleWithProjects += " +" + project
+	}
+	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, task.Note)
 	if _, err := tempFile.WriteString(content); err != nil {
 		tempFile.Close()
 		return err
@@ -81,14 +87,15 @@ func editTaskNote(task *internal.Task) error {
 		return err
 	}
 	
-	parsedTitle, parsedNote := parseEditedContent(string(editedContent))
+	parsedTitle, parsedProjects, parsedNote := parseEditedContent(string(editedContent))
 	task.Title = parsedTitle
+	task.Projects = parsedProjects
 	task.Note = parsedNote
 	
 	return nil
 }
 
-func parseEditedContent(content string) (title string, note string) {
+func parseEditedContent(content string) (title string, projects []string, note string) {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	
 	foundTitle := false
@@ -98,7 +105,9 @@ func parseEditedContent(content string) (title string, note string) {
 		line := scanner.Text()
 		
 		if !foundTitle && strings.HasPrefix(line, "# ") {
-			title = strings.TrimPrefix(line, "# ")
+			titleLine := strings.TrimPrefix(line, "# ")
+			// Extract projects from the title line
+			title, projects = internal.ExtractProjectsFromTitle(titleLine)
 			foundTitle = true
 			continue
 		}
@@ -127,5 +136,5 @@ func parseEditedContent(content string) (title string, note string) {
 		}
 	}
 	
-	return title, note
+	return title, projects, note
 }

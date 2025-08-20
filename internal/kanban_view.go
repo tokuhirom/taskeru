@@ -25,7 +25,8 @@ type KanbanView struct {
 	shouldReload    bool
 	viewHeight      int  // Terminal height for viewport
 	createMode      bool // Mode for creating new task
-	createInput     string // Input buffer for new task title
+	inputBuffer     string // Input buffer for new task title
+	inputCursor     int  // Cursor position in input buffer
 }
 
 func NewKanbanView(tasks []Task) *KanbanView {
@@ -76,7 +77,8 @@ func NewKanbanView(tasks []Task) *KanbanView {
 		shouldReload:   false,
 		viewHeight:     30, // Default height, will be updated with WindowSizeMsg
 		createMode:     false,
-		createInput:    "",
+		inputBuffer:    "",
+		inputCursor:    0,
 	}
 }
 
@@ -94,13 +96,20 @@ func (m KanbanView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Handle input in create mode
 		if m.createMode {
-			switch msg.String() {
-			case "enter":
-				// Create the task
-				if strings.TrimSpace(m.createInput) != "" {
-					newTask := NewTask(m.createInput)
+			runes := []rune(m.inputBuffer)
+			
+			switch msg.Type {
+			case tea.KeyEnter:
+				// Create the task with project extraction
+				if strings.TrimSpace(m.inputBuffer) != "" {
+					// Extract projects from title
+					cleanTitle, projects := ExtractProjectsFromTitle(m.inputBuffer)
+					
+					newTask := NewTask(cleanTitle)
 					// Set status based on current column
 					newTask.SetStatus(m.columns[m.currentColumn])
+					// Add extracted projects
+					newTask.Projects = projects
 					m.allTasks = append(m.allTasks, *newTask)
 					
 					// Re-sort and rebuild
@@ -119,24 +128,106 @@ func (m KanbanView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.modified = true
 				}
 				m.createMode = false
-				m.createInput = ""
+				m.inputBuffer = ""
+				m.inputCursor = 0
 				
-			case "esc":
+			case tea.KeyEscape:
 				// Cancel creation
 				m.createMode = false
-				m.createInput = ""
+				m.inputBuffer = ""
+				m.inputCursor = 0
 				
-			case "backspace":
-				// Remove last character
-				if len(m.createInput) > 0 {
-					runes := []rune(m.createInput)
-					m.createInput = string(runes[:len(runes)-1])
+			case tea.KeyLeft, tea.KeyCtrlB:
+				// Move cursor left
+				if m.inputCursor > 0 {
+					m.inputCursor--
 				}
 				
+			case tea.KeyRight, tea.KeyCtrlF:
+				// Move cursor right
+				if m.inputCursor < len(runes) {
+					m.inputCursor++
+				}
+				
+			case tea.KeyHome, tea.KeyCtrlA:
+				// Move to beginning
+				m.inputCursor = 0
+				
+			case tea.KeyEnd, tea.KeyCtrlE:
+				// Move to end
+				m.inputCursor = len(runes)
+				
+			case tea.KeyTab:
+				// Tab completion for project names
+				if m.inputCursor == len(runes) { // Only complete at end of input
+					// Find the last '+' before cursor
+					lastPlusIdx := -1
+					for i := m.inputCursor - 1; i >= 0; i-- {
+						if runes[i] == '+' {
+							lastPlusIdx = i
+							break
+						}
+						if runes[i] == ' ' {
+							break // Stop if we hit a space
+						}
+					}
+					
+					if lastPlusIdx >= 0 && lastPlusIdx < m.inputCursor-1 {
+						// Get the partial project name
+						partial := string(runes[lastPlusIdx+1:m.inputCursor])
+						
+						// Get all existing projects
+						allProjects := GetAllProjects(m.allTasks)
+						
+						// Find matching projects
+						var matches []string
+						for _, project := range allProjects {
+							if strings.HasPrefix(project, partial) {
+								matches = append(matches, project)
+							}
+						}
+						
+						// If exactly one match, complete it
+						if len(matches) == 1 {
+							// Replace the partial with the full project name
+							m.inputBuffer = string(runes[:lastPlusIdx+1]) + matches[0]
+							m.inputCursor = len([]rune(m.inputBuffer))
+						}
+					}
+				}
+				
+			case tea.KeyCtrlH, tea.KeyBackspace:
+				// Remove character before cursor
+				if m.inputCursor > 0 && len(runes) > 0 {
+					m.inputBuffer = string(append(runes[:m.inputCursor-1], runes[m.inputCursor:]...))
+					m.inputCursor--
+				}
+				
+			case tea.KeyDelete:
+				// Remove character at cursor
+				if m.inputCursor < len(runes) {
+					m.inputBuffer = string(append(runes[:m.inputCursor], runes[m.inputCursor+1:]...))
+				}
+				
+			case tea.KeyRunes:
+				// Insert runes at cursor position (handles multi-byte characters properly)
+				newRunes := append(runes[:m.inputCursor], append(msg.Runes, runes[m.inputCursor:]...)...)
+				m.inputBuffer = string(newRunes)
+				m.inputCursor += len(msg.Runes)
+				
+			case tea.KeySpace:
+				// Insert space at cursor position
+				newRunes := append(runes[:m.inputCursor], append([]rune{' '}, runes[m.inputCursor:]...)...)
+				m.inputBuffer = string(newRunes)
+				m.inputCursor++
+				
 			default:
-				// Add character to input
-				if len(msg.String()) == 1 {
-					m.createInput += msg.String()
+				// Handle other single characters
+				str := msg.String()
+				if len(str) == 1 && str != " " {
+					newRunes := append(runes[:m.inputCursor], append([]rune(str), runes[m.inputCursor:]...)...)
+					m.inputBuffer = string(newRunes)
+					m.inputCursor++
 				}
 			}
 			return m, nil
@@ -337,7 +428,8 @@ func (m KanbanView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Create new task
 			if !m.confirmDelete {
 				m.createMode = true
-				m.createInput = ""
+				m.inputBuffer = ""
+				m.inputCursor = 0
 			}
 			
 		case "e":
@@ -422,8 +514,9 @@ func (m *KanbanView) getCurrentTask() *Task {
 }
 
 func (m *KanbanView) updateScrollForSelection() {
-	// Calculate the visible area (considering headers and footer take about 10 lines)
-	visibleRows := max(1, (m.viewHeight-10)/7) // Each card is approximately 7 lines
+	// Calculate the visible area
+	overhead := 12 // Fixed UI elements (headers, help text, etc.)
+	visibleRows := max(1, (m.viewHeight-overhead)/5) // Average 5 lines per card
 	
 	// If selected row is above visible area, scroll up
 	if m.currentRow < m.scrollOffset {
@@ -526,7 +619,15 @@ func (m KanbanView) View() string {
 	s.WriteString("\n\n")
 	
 	// Calculate visible rows based on terminal height
-	visibleRows := max(1, (m.viewHeight-10)/7) // Each card is approximately 7 lines
+	// Fixed overhead:
+	// - Header + separator + blank = 3 lines
+	// - Column headers + separator + blank = 3 lines  
+	// - Help text (2 blanks + 2 lines) = 4 lines
+	// - Total fixed = 10 lines
+	// - Scroll indicators (if shown) = 2 lines each
+	// Each card is typically 4-5 lines (borders + title + projects)
+	overhead := 12 // Fixed UI elements plus some buffer
+	visibleRows := max(1, (m.viewHeight-overhead)/5) // Average 5 lines per card
 	
 	// Find max tasks in any column for row iteration
 	maxRows := 0
@@ -688,10 +789,7 @@ func (m KanbanView) View() string {
 			s.WriteString("\n")
 		}
 		
-		// Add spacing between cards
-		if row < endRow-1 {
-			s.WriteString("\n")
-		}
+		// No extra spacing between cards - they already have borders
 	}
 	
 	// Display scroll indicator if there are hidden cards below
@@ -716,8 +814,21 @@ func (m KanbanView) View() string {
 	
 	// Help text
 	if m.createMode {
-		s.WriteString("\n\n📝 New task: " + m.createInput + "_")
-		s.WriteString("\n(Enter to create, Esc to cancel)")
+		// Display input with cursor
+		runes := []rune(m.inputBuffer)
+		var display strings.Builder
+		display.WriteString("\n\n📝 New task: ")
+		
+		for i := 0; i <= len(runes); i++ {
+			if i == m.inputCursor {
+				display.WriteString("▏") // cursor
+			}
+			if i < len(runes) {
+				display.WriteRune(runes[i])
+			}
+		}
+		s.WriteString(display.String())
+		s.WriteString("\n(Enter to create, Esc to cancel, Tab to complete project)")
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {

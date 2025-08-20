@@ -85,6 +85,7 @@ func KanbanCommand() error {
 			
 			if err := internal.UpdateTaskWithConflictCheck(kanbanEditTask.ID, originalUpdated, func(t *internal.Task) {
 				t.Title = kanbanEditTask.Title
+				t.Projects = kanbanEditTask.Projects
 				t.Note = kanbanEditTask.Note
 			}); err != nil {
 				if strings.Contains(err.Error(), "modified by another process") {
@@ -136,7 +137,12 @@ func editTaskNoteKanban(task *internal.Task) error {
 	}
 	defer os.Remove(tempFile.Name())
 	
-	content := fmt.Sprintf("# %s\n\n%s", task.Title, task.Note)
+	// Include projects in the title line
+	titleWithProjects := task.Title
+	for _, project := range task.Projects {
+		titleWithProjects += " +" + project
+	}
+	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, task.Note)
 	if _, err := tempFile.WriteString(content); err != nil {
 		tempFile.Close()
 		return err
@@ -162,14 +168,15 @@ func editTaskNoteKanban(task *internal.Task) error {
 		return err
 	}
 	
-	parsedTitle, parsedNote := parseEditedContentKanban(string(editedContent))
+	parsedTitle, parsedProjects, parsedNote := parseEditedContentKanban(string(editedContent))
 	task.Title = parsedTitle
+	task.Projects = parsedProjects
 	task.Note = parsedNote
 	
 	return nil
 }
 
-func parseEditedContentKanban(content string) (title string, note string) {
+func parseEditedContentKanban(content string) (title string, projects []string, note string) {
 	lines := strings.Split(content, "\n")
 	
 	foundTitle := false
@@ -177,7 +184,9 @@ func parseEditedContentKanban(content string) (title string, note string) {
 	
 	for _, line := range lines {
 		if !foundTitle && strings.HasPrefix(line, "# ") {
-			title = strings.TrimPrefix(line, "# ")
+			titleLine := strings.TrimPrefix(line, "# ")
+			// Extract projects from the title line
+			title, projects = internal.ExtractProjectsFromTitle(titleLine)
 			foundTitle = true
 			continue
 		}
@@ -209,5 +218,5 @@ func parseEditedContentKanban(content string) (title string, note string) {
 		}
 	}
 	
-	return title, note
+	return title, projects, note
 }
