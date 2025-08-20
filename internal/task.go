@@ -268,16 +268,41 @@ func SortTasks(tasks []Task) {
 }
 
 // GetProjectColor returns an ANSI 256 color code for a project name
-// Uses a hash of the project name to consistently assign one of 5 colors
+// Uses a hash of the project name to consistently assign one of 30 colors
 func GetProjectColor(project string) string {
-	// Define 5 distinct ANSI 256 colors for projects
-	// Using colors that work well on both light and dark backgrounds
+	// Define 30 distinct ANSI 256 colors for projects
+	// Selected to be visible on both light and dark backgrounds
 	colors := []string{
-		"\x1b[38;5;33m",  // Blue (33)
-		"\x1b[38;5;208m", // Orange (208)
-		"\x1b[38;5;162m", // Magenta (162)
-		"\x1b[38;5;34m",  // Green (34)
-		"\x1b[38;5;141m", // Purple (141)
+		"\x1b[38;5;33m",  // Blue
+		"\x1b[38;5;208m", // Orange
+		"\x1b[38;5;162m", // Magenta
+		"\x1b[38;5;34m",  // Green
+		"\x1b[38;5;141m", // Purple
+		"\x1b[38;5;214m", // Gold
+		"\x1b[38;5;39m",  // Deep Sky Blue
+		"\x1b[38;5;202m", // Red Orange
+		"\x1b[38;5;165m", // Magenta Pink
+		"\x1b[38;5;46m",  // Bright Green
+		"\x1b[38;5;135m", // Medium Purple
+		"\x1b[38;5;220m", // Yellow
+		"\x1b[38;5;45m",  // Turquoise
+		"\x1b[38;5;196m", // Red
+		"\x1b[38;5;171m", // Light Purple
+		"\x1b[38;5;118m", // Light Green
+		"\x1b[38;5;99m",  // Slate Purple
+		"\x1b[38;5;215m", // Peach
+		"\x1b[38;5;51m",  // Cyan
+		"\x1b[38;5;205m", // Hot Pink
+		"\x1b[38;5;155m", // Pale Green
+		"\x1b[38;5;105m", // Light Slate
+		"\x1b[38;5;222m", // Light Orange
+		"\x1b[38;5;87m",  // Light Cyan
+		"\x1b[38;5;198m", // Deep Pink
+		"\x1b[38;5;120m", // Light Yellow Green
+		"\x1b[38;5;147m", // Light Blue Purple
+		"\x1b[38;5;209m", // Salmon
+		"\x1b[38;5;81m",  // Sky Blue
+		"\x1b[38;5;169m", // Pink
 	}
 	
 	// Simple hash: sum of character codes
