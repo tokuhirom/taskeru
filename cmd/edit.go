@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"taskeru/internal"
 )
@@ -61,7 +62,22 @@ func editTaskNote(task *internal.Task) error {
 	for _, project := range task.Projects {
 		titleWithProjects += " +" + project
 	}
-	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, task.Note)
+	
+	// Add timestamp for new entry
+	now := time.Now()
+	// Format: YYYY-MM-DD(Day) HH:MM
+	weekday := now.Format("Mon")
+	timestamp := fmt.Sprintf("\n\n## %s(%s) %s\n", now.Format("2006-01-02"), weekday, now.Format("15:04"))
+	
+	// Append timestamp to existing note or create new note with timestamp
+	noteWithTimestamp := task.Note
+	if noteWithTimestamp != "" {
+		noteWithTimestamp += timestamp
+	} else {
+		noteWithTimestamp = timestamp
+	}
+	
+	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, noteWithTimestamp)
 	if _, err := tempFile.WriteString(content); err != nil {
 		tempFile.Close()
 		return err
