@@ -1,0 +1,22 @@
+version: "2"
+
+linters:
+  enable:
+    - staticcheck
+    - govet
+    - errcheck
+    - ineffassign
+    - unused
+    - misspell
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/tokuhirom/dcv
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

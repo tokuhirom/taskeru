@@ -1,0 +1,63 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: taskeru
+    main: ./main.go
+    binary: taskeru
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: windows
+        goarch: arm
+
+archives:
+  - id: taskeru
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- .Os }}_
+      {{- .Arch }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    builds:
+      - taskeru
+
+checksum:
+  name_template: 'checksums.txt'
+
+release:
+  github:
+    owner: tokuhirom
+    name: taskeru
+  draft: false
+  prerelease: auto
+  mode: replace
+  name_template: "{{.ProjectName}} v{{.Version}}"
+
+brews:
+  - repository:
+      owner: tokuhirom
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    name: taskeru
+    homepage: "https://github.com/tokuhirom/taskeru"
+    description: "Taskeru - task management tool"
+    license: "MIT"
+    test: |
+      system "#{bin}/taskeru", "--version"
+    install: |
+      bin.install "taskeru"
