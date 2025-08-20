@@ -32,15 +32,18 @@ func NewProjectView(tasks []Task) *ProjectView {
 	// Sort tasks first
 	SortTasks(tasks)
 	
-	// Get all unique projects
+	// Get all unique projects from ALL tasks (before filtering)
 	projects := GetAllProjects(tasks)
 	sort.Strings(projects)
+	
+	// Filter visible tasks by default (same as main interactive mode)
+	filteredTasks := FilterVisibleTasks(tasks, false)
 	
 	// Create "No Project" category for tasks without projects
 	projectTasks := make(map[string][]Task)
 	var noProjectTasks []Task
 	
-	for _, task := range tasks {
+	for _, task := range filteredTasks {
 		if len(task.Projects) == 0 {
 			noProjectTasks = append(noProjectTasks, task)
 		} else {
@@ -236,8 +239,8 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						// Re-sort all tasks
 						SortTasks(m.allTasks)
 						
-						// Rebuild project tasks
-						m.rebuildProjectTasks()
+						// Rebuild project tasks with filter
+						m.rebuildProjectTasksWithFilter()
 						
 						// Find the task's new position and move cursor there
 						for j, task := range m.projectTasks[m.selectedProject] {
@@ -283,8 +286,8 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						// Re-sort all tasks
 						SortTasks(m.allTasks)
 						
-						// Rebuild project tasks
-						m.rebuildProjectTasks()
+						// Rebuild project tasks with filter
+						m.rebuildProjectTasksWithFilter()
 						
 						// Find the task's new position and move cursor there
 						for j, task := range m.projectTasks[m.selectedProject] {

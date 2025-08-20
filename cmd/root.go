@@ -76,6 +76,8 @@ func Execute() {
 		err = ListCommand()
 	case "edit", "e":
 		err = EditCommand()
+	case "kanban":
+		err = KanbanCommand()
 	case "help", "-h", "--help":
 		showHelp()
 	default:
@@ -103,6 +105,7 @@ Commands:
   add <title>    Add a new task (supports +project tags)
   ls, list       List all tasks
   edit, e        Edit a task interactively
+  kanban         Show tasks in kanban board view
   help           Show this help message
 
 Interactive Mode Keys:
