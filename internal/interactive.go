@@ -482,10 +482,11 @@ func (m InteractiveTaskList) View() string {
 		
 		line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
 		
-		// Add projects with cyan color
+		// Add projects with color
 		if len(task.Projects) > 0 {
 			for _, project := range task.Projects {
-				line += fmt.Sprintf(" \x1b[36m+%s\x1b[0m", project)
+				projectColor := GetProjectColor(project)
+				line += fmt.Sprintf(" %s+%s\x1b[0m", projectColor, project)
 			}
 		}
 		

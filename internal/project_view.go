@@ -451,7 +451,12 @@ func (m ProjectView) View() string {
 	
 	if m.inProjectView {
 		// Show tasks in selected project
-		s.WriteString(fmt.Sprintf("Project: \x1b[36m%s\x1b[0m\n", m.selectedProject))
+		projectDisplay := m.selectedProject
+		if m.selectedProject != "[No Project]" {
+			color := GetProjectColor(m.selectedProject)
+			projectDisplay = fmt.Sprintf("%s%s\x1b[0m", color, m.selectedProject)
+		}
+		s.WriteString(fmt.Sprintf("Project: %s\n", projectDisplay))
 		s.WriteString(strings.Repeat("-", 40) + "\n\n")
 		
 		tasks := m.projectTasks[m.selectedProject]
@@ -537,7 +542,8 @@ func (m ProjectView) View() string {
 				
 				projectDisplay := project
 				if project != "[No Project]" {
-					projectDisplay = fmt.Sprintf("\x1b[36m+%s\x1b[0m", project)
+					color := GetProjectColor(project)
+					projectDisplay = fmt.Sprintf("%s+%s\x1b[0m", color, project)
 				}
 				
 				line := fmt.Sprintf("%s%s (%d tasks, %d active)\n", cursor, projectDisplay, count, activeCount)

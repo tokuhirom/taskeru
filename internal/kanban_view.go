@@ -729,7 +729,8 @@ func (m KanbanView) View() string {
 						if i > 0 {
 							projectLine += " "
 						}
-						projectLine += fmt.Sprintf("\x1b[36m+%s\x1b[0m", project)
+						color := GetProjectColor(project)
+						projectLine += fmt.Sprintf("%s+%s\x1b[0m", color, project)
 					}
 					// Truncate if too long
 					if displayWidth(projectLine) > innerWidth {
@@ -740,7 +741,8 @@ func (m KanbanView) View() string {
 							if i > 0 {
 								testLine += " "
 							}
-							testLine += fmt.Sprintf("\x1b[36m+%s\x1b[0m", project)
+							color := GetProjectColor(project)
+							testLine += fmt.Sprintf("%s+%s\x1b[0m", color, project)
 							if displayWidth(testLine) <= innerWidth-3 {
 								projectLine = testLine
 							} else {

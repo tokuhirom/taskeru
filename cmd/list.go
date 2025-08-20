@@ -57,8 +57,9 @@ func ListCommand() error {
 		if len(task.Projects) > 0 {
 			var projectStrs []string
 			for _, project := range task.Projects {
-				// Use cyan color for projects
-				projectStrs = append(projectStrs, fmt.Sprintf("\x1b[36m+%s\x1b[0m", project))
+				// Use consistent color for each project
+				color := internal.GetProjectColor(project)
+				projectStrs = append(projectStrs, fmt.Sprintf("%s+%s\x1b[0m", color, project))
 			}
 			fmt.Printf(" %s", strings.Join(projectStrs, " "))
 		}

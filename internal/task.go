@@ -266,3 +266,27 @@ func SortTasks(tasks []Task) {
 		return tasks[i].Updated.After(tasks[j].Updated)
 	})
 }
+
+// GetProjectColor returns an ANSI 256 color code for a project name
+// Uses a hash of the project name to consistently assign one of 5 colors
+func GetProjectColor(project string) string {
+	// Define 5 distinct ANSI 256 colors for projects
+	// Using colors that work well on both light and dark backgrounds
+	colors := []string{
+		"\x1b[38;5;33m",  // Blue (33)
+		"\x1b[38;5;208m", // Orange (208)
+		"\x1b[38;5;162m", // Magenta (162)
+		"\x1b[38;5;34m",  // Green (34)
+		"\x1b[38;5;141m", // Purple (141)
+	}
+	
+	// Simple hash: sum of character codes
+	hash := 0
+	for _, ch := range project {
+		hash += int(ch)
+	}
+	
+	// Select color based on hash
+	colorIndex := hash % len(colors)
+	return colors[colorIndex]
+}
