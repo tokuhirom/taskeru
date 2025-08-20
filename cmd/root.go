@@ -78,6 +78,8 @@ func Execute() {
 		err = EditCommand()
 	case "kanban":
 		err = KanbanCommand()
+	case "init-config":
+		err = InitConfigCommand()
 	case "help", "-h", "--help":
 		showHelp()
 	default:
@@ -106,6 +108,7 @@ Commands:
   ls, list       List all tasks
   edit, e        Edit a task interactively
   kanban         Show tasks in kanban board view
+  init-config    Create default configuration file
   help           Show this help message
 
 Interactive Mode Keys:

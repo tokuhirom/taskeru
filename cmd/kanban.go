@@ -137,12 +137,33 @@ func editTaskNoteKanban(task *internal.Task) error {
 	}
 	defer os.Remove(tempFile.Name())
 	
+	// Load configuration
+	config, _ := internal.LoadConfig()
+	
 	// Include projects in the title line
 	titleWithProjects := task.Title
 	for _, project := range task.Projects {
 		titleWithProjects += " +" + project
 	}
-	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, task.Note)
+	
+	noteContent := task.Note
+	
+	// Add timestamp if enabled in config
+	if config.Editor.AddTimestamp {
+		now := time.Now()
+		// Format: YYYY-MM-DD(Day) HH:MM
+		weekday := now.Format("Mon")
+		timestamp := fmt.Sprintf("\n\n## %s(%s) %s\n", now.Format("2006-01-02"), weekday, now.Format("15:04"))
+		
+		// Append timestamp to existing note or create new note with timestamp
+		if noteContent != "" {
+			noteContent += timestamp
+		} else {
+			noteContent = timestamp
+		}
+	}
+	
+	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, noteContent)
 	if _, err := tempFile.WriteString(content); err != nil {
 		tempFile.Close()
 		return err
