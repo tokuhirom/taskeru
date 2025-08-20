@@ -95,17 +95,35 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case " ":
 			// Toggle task status
 			if m.inProjectView && m.cursor < len(m.projectTasks[m.selectedProject]) {
-				task := &m.projectTasks[m.selectedProject][m.cursor]
+				currentTaskID := m.projectTasks[m.selectedProject][m.cursor].ID
 				// Find and update in allTasks
 				for i := range m.allTasks {
-					if m.allTasks[i].ID == task.ID {
+					if m.allTasks[i].ID == currentTaskID {
 						if m.allTasks[i].Status == StatusDONE {
 							m.allTasks[i].SetStatus(StatusTODO)
 						} else {
 							m.allTasks[i].SetStatus(StatusDONE)
 						}
-						// Update in project view
-						m.projectTasks[m.selectedProject][m.cursor] = m.allTasks[i]
+						
+						// Re-sort all tasks
+						SortTasks(m.allTasks)
+						
+						// Rebuild project tasks
+						m.rebuildProjectTasks()
+						
+						// Find the task's new position and move cursor there
+						for j, task := range m.projectTasks[m.selectedProject] {
+							if task.ID == currentTaskID {
+								m.cursor = j
+								break
+							}
+						}
+						
+						// Ensure cursor is within bounds
+						if m.cursor >= len(m.projectTasks[m.selectedProject]) && len(m.projectTasks[m.selectedProject]) > 0 {
+							m.cursor = len(m.projectTasks[m.selectedProject]) - 1
+						}
+						
 						m.modified = true
 						break
 					}
@@ -115,9 +133,9 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "s":
 			// Cycle through statuses
 			if m.inProjectView && m.cursor < len(m.projectTasks[m.selectedProject]) {
-				task := &m.projectTasks[m.selectedProject][m.cursor]
+				currentTaskID := m.projectTasks[m.selectedProject][m.cursor].ID
 				for i := range m.allTasks {
-					if m.allTasks[i].ID == task.ID {
+					if m.allTasks[i].ID == currentTaskID {
 						currentStatus := m.allTasks[i].Status
 						allStatuses := GetAllStatuses()
 						
@@ -133,7 +151,26 @@ func (m ProjectView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						// Cycle to next status
 						nextIdx := (currentIdx + 1) % len(allStatuses)
 						m.allTasks[i].SetStatus(allStatuses[nextIdx])
-						m.projectTasks[m.selectedProject][m.cursor] = m.allTasks[i]
+						
+						// Re-sort all tasks
+						SortTasks(m.allTasks)
+						
+						// Rebuild project tasks
+						m.rebuildProjectTasks()
+						
+						// Find the task's new position and move cursor there
+						for j, task := range m.projectTasks[m.selectedProject] {
+							if task.ID == currentTaskID {
+								m.cursor = j
+								break
+							}
+						}
+						
+						// Ensure cursor is within bounds
+						if m.cursor >= len(m.projectTasks[m.selectedProject]) && len(m.projectTasks[m.selectedProject]) > 0 {
+							m.cursor = len(m.projectTasks[m.selectedProject]) - 1
+						}
+						
 						m.modified = true
 						break
 					}
@@ -280,7 +317,7 @@ func (m ProjectView) View() string {
 				var statusColor string
 				switch task.Status {
 				case StatusDONE:
-					statusColor = "\x1b[32m" // green
+					statusColor = "\x1b[90m" // gray
 				case StatusDOING:
 					statusColor = "\x1b[33m" // yellow
 				case StatusWAITING:

@@ -195,8 +195,24 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						} else {
 							m.allTasks[i].SetStatus(StatusDONE)
 						}
-						// Update the filtered view
-						m.tasks[m.cursor] = m.allTasks[i]
+						
+						// Re-sort and update filtered view
+						SortTasks(m.allTasks)
+						m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+						
+						// Find the task's new position and move cursor there
+						for j, task := range m.tasks {
+							if task.ID == taskID {
+								m.cursor = j
+								break
+							}
+						}
+						
+						// Ensure cursor is within bounds
+						if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
+							m.cursor = len(m.tasks) - 1
+						}
+						
 						m.modified = true
 						break
 					}
@@ -338,10 +354,20 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					nextIdx := (currentIdx + 1) % len(allStatuses)
 					m.allTasks[taskIdx].SetStatus(allStatuses[nextIdx])
 					
-					// Update filtered view
+					// Re-sort and update filtered view
+					SortTasks(m.allTasks)
 					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
 					
-					// Adjust cursor if necessary
+					// Find the task's new position and move cursor there
+					currentTaskID := m.allTasks[taskIdx].ID
+					for i, task := range m.tasks {
+						if task.ID == currentTaskID {
+							m.cursor = i
+							break
+						}
+					}
+					
+					// Ensure cursor is within bounds
 					if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
 						m.cursor = len(m.tasks) - 1
 					}
@@ -443,7 +469,7 @@ func (m InteractiveTaskList) View() string {
 		var statusColor string
 		switch task.Status {
 		case StatusDONE:
-			statusColor = "\x1b[32m" // green
+			statusColor = "\x1b[90m" // gray
 		case StatusDOING:
 			statusColor = "\x1b[33m" // yellow
 		case StatusWAITING:

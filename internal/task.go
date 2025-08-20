@@ -243,10 +243,18 @@ func GetPriorityValue(priority string) float64 {
 	return 100 // Very low priority for invalid values
 }
 
-// SortTasks sorts tasks by priority (A-Z), then by update time (newest first)
+// SortTasks sorts tasks by status (active first, completed last), then priority (A-Z), then update time
 func SortTasks(tasks []Task) {
 	sort.Slice(tasks, func(i, j int) bool {
-		// First sort by priority
+		// First, completed tasks (DONE/WONTDO) always go to the bottom
+		iCompleted := tasks[i].Status == StatusDONE || tasks[i].Status == StatusWONTDO
+		jCompleted := tasks[j].Status == StatusDONE || tasks[j].Status == StatusWONTDO
+		
+		if iCompleted != jCompleted {
+			return !iCompleted // Active tasks come first
+		}
+		
+		// Both are active or both are completed, sort by priority
 		iPriority := GetPriorityValue(tasks[i].Priority)
 		jPriority := GetPriorityValue(tasks[j].Priority)
 		

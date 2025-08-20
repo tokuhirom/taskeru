@@ -40,7 +40,7 @@ func ListCommand() error {
 		var statusColor string
 		switch task.Status {
 		case internal.StatusDONE:
-			statusColor = "\x1b[32m" // green
+			statusColor = "\x1b[90m" // gray
 		case internal.StatusDOING:
 			statusColor = "\x1b[33m" // yellow
 		case internal.StatusWAITING:
