@@ -3,6 +3,7 @@ package internal
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/BurntSushi/toml"
 )
@@ -26,17 +27,31 @@ func DefaultConfig() *Config {
 	}
 }
 
+func UserConfigPath() (string, error) {
+	if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			return "", nil // Return default config if can't get config dir
+		}
+		return filepath.Join(configDir, "taskeru", "config.toml"), nil
+	}
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", nil // Return default config if can't get home dir
+	}
+
+	return filepath.Join(homeDir, ".config", "taskeru", "config.toml"), nil
+}
+
 // LoadConfig loads configuration from file or returns default
 func LoadConfig() (*Config, error) {
 	config := DefaultConfig()
 
 	// Try to load from config file
-	homeDir, err := os.UserHomeDir()
+	configPath, err := UserConfigPath()
 	if err != nil {
 		return config, nil // Return default config if can't get home dir
 	}
-
-	configPath := filepath.Join(homeDir, ".config", "taskeru", "config.toml")
 
 	// Check if config file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -55,16 +70,13 @@ func LoadConfig() (*Config, error) {
 
 // SaveDefaultConfig creates a default config file
 func SaveDefaultConfig() error {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := UserConfigPath()
 	if err != nil {
 		return err
 	}
 
-	configDir := filepath.Join(homeDir, ".config", "taskeru")
-	configPath := filepath.Join(configDir, "config.toml")
-
 	// Create config directory if it doesn't exist
-	if err := os.MkdirAll(configDir, 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return err
 	}
 
