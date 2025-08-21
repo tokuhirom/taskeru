@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -613,7 +614,26 @@ func (m InteractiveTaskList) View() string {
 		// Add completion date for done/wontdo tasks (dim gray)
 		if task.Status == StatusDONE || task.Status == StatusWONTDO {
 			if task.CompletedAt != nil {
-				line += fmt.Sprintf(" \x1b[90m(%s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
+				line += fmt.Sprintf(" \x1b[90m(completed %s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
+			}
+		} else if task.DueDate != nil {
+			// Add due date with color based on urgency
+			dueIn := time.Until(*task.DueDate)
+			if dueIn < 0 {
+				// Overdue - red
+				line += fmt.Sprintf(" \x1b[91m(overdue %s)\x1b[0m", task.DueDate.Format("01-02"))
+			} else if dueIn < 24*time.Hour {
+				// Due today - yellow
+				line += fmt.Sprintf(" \x1b[93m(due today)\x1b[0m")
+			} else if dueIn < 48*time.Hour {
+				// Due tomorrow - light yellow
+				line += fmt.Sprintf(" \x1b[33m(due tomorrow)\x1b[0m")
+			} else if dueIn < 7*24*time.Hour {
+				// Due this week - cyan
+				line += fmt.Sprintf(" \x1b[36m(due %s)\x1b[0m", task.DueDate.Format("Mon"))
+			} else {
+				// Due later - dim
+				line += fmt.Sprintf(" \x1b[90m(due %s)\x1b[0m", task.DueDate.Format("01-02"))
 			}
 		}
 		line += "\x1b[0m" // Always close the status color

@@ -84,13 +84,20 @@ func ListCommand(projectFilter string) error {
 		} else if task.DueDate != nil {
 			dueIn := time.Until(*task.DueDate)
 			if dueIn < 0 {
-				fmt.Printf(" (overdue)")
+				// Overdue - red
+				fmt.Printf(" \x1b[91m(overdue %s)\x1b[0m", task.DueDate.Format("01-02"))
 			} else if dueIn < 24*time.Hour {
-				fmt.Printf(" (due today)")
+				// Due today - yellow
+				fmt.Printf(" \x1b[93m(due today)\x1b[0m")
 			} else if dueIn < 48*time.Hour {
-				fmt.Printf(" (due tomorrow)")
+				// Due tomorrow - light yellow
+				fmt.Printf(" \x1b[33m(due tomorrow)\x1b[0m")
+			} else if dueIn < 7*24*time.Hour {
+				// Due this week - cyan
+				fmt.Printf(" \x1b[36m(due %s)\x1b[0m", task.DueDate.Format("Mon"))
 			} else {
-				fmt.Printf(" (due %s)", task.DueDate.Format("2006-01-02"))
+				// Due later - dim
+				fmt.Printf(" \x1b[90m(due %s)\x1b[0m", task.DueDate.Format("01-02"))
 			}
 		}
 

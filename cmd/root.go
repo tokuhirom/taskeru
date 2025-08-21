@@ -87,7 +87,7 @@ Options:
   -p <project>   Filter tasks by project (for ls command)
 
 Commands:
-  add <title>    Add a new task (supports +project tags)
+  add <title>    Add a new task (supports +project tags and due:date)
   ls, list       List all tasks (use -p to filter by project)
   edit, e        Edit a task interactively
   kanban         Show tasks in kanban board view
@@ -110,10 +110,20 @@ Interactive Mode Keys:
 Examples:
   taskeru                           # Interactive mode
   taskeru add "Buy milk +personal"  # Add task with project
+  taskeru add "Report due:tomorrow" # Add task with deadline
+  taskeru add "Meeting due:friday +work"  # Task with deadline and project
   taskeru ls                        # List all tasks
   taskeru -p work ls                # List only tasks with +work project
   taskeru edit                      # Select and edit a task
   taskeru -t /tmp/test.json add "Test task"  # Use different file
+
+Deadline formats:
+  due:today         # Due end of today
+  due:tomorrow      # Due end of tomorrow
+  due:monday        # Next Monday (or any weekday)
+  due:2024-12-31    # Specific date (YYYY-MM-DD)
+  due:12-25         # Month-day (current/next year)
+  due:12/25         # Alternative format
 
 Environment Variables:
   EDITOR          Editor to use for editing (default: vim)`)
