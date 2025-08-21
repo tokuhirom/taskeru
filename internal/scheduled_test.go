@@ -49,19 +49,19 @@ func TestExtractScheduledDateFromTitle(t *testing.T) {
 			description:   "Should return unchanged for invalid scheduled date",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			cleanTitle, scheduled := ExtractScheduledDateFromTitle(tt.input)
-			
+
 			if cleanTitle != tt.expectedTitle {
 				t.Errorf("Expected title %q, got %q", tt.expectedTitle, cleanTitle)
 			}
-			
+
 			if tt.hasScheduled && scheduled == nil {
 				t.Error("Expected scheduled date to be extracted, but got nil")
 			}
-			
+
 			if !tt.hasScheduled && scheduled != nil {
 				t.Errorf("Expected no scheduled date, but got %v", scheduled)
 			}
@@ -71,28 +71,28 @@ func TestExtractScheduledDateFromTitle(t *testing.T) {
 
 func TestExtractBothScheduledAndDueDate(t *testing.T) {
 	input := "Task scheduled:tomorrow due:friday +work"
-	
+
 	// Extract scheduled date
 	cleanTitle, scheduled := ExtractScheduledDateFromTitle(input)
-	
+
 	// Extract deadline
 	cleanTitle, deadline := ExtractDeadlineFromTitle(cleanTitle)
-	
+
 	// Extract projects
 	cleanTitle, projects := ExtractProjectsFromTitle(cleanTitle)
-	
+
 	if cleanTitle != "Task" {
 		t.Errorf("Expected title 'Task', got %q", cleanTitle)
 	}
-	
+
 	if scheduled == nil {
 		t.Error("Expected scheduled date to be extracted")
 	}
-	
+
 	if deadline == nil {
 		t.Error("Expected deadline to be extracted")
 	}
-	
+
 	if len(projects) != 1 || projects[0] != "work" {
 		t.Errorf("Expected projects [work], got %v", projects)
 	}
@@ -103,11 +103,11 @@ func TestIsFutureScheduled(t *testing.T) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	tomorrow := today.AddDate(0, 0, 1)
 	yesterday := today.AddDate(0, 0, -1)
-	
+
 	tests := []struct {
-		name      string
-		task      Task
-		isFuture  bool
+		name     string
+		task     Task
+		isFuture bool
 	}{
 		{
 			name:     "No scheduled date",
@@ -130,7 +130,7 @@ func TestIsFutureScheduled(t *testing.T) {
 			isFuture: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.task.IsFutureScheduled()
@@ -144,11 +144,11 @@ func TestIsFutureScheduled(t *testing.T) {
 func TestScheduledDateStartOfDay(t *testing.T) {
 	// Scheduled dates should be at start of day (00:00:00)
 	_, scheduled := ExtractScheduledDateFromTitle("Task scheduled:tomorrow")
-	
+
 	if scheduled == nil {
 		t.Fatal("Expected scheduled date to be extracted")
 	}
-	
+
 	if scheduled.Hour() != 0 || scheduled.Minute() != 0 || scheduled.Second() != 0 {
 		t.Errorf("Scheduled date should be at start of day, got %v", scheduled.Format("15:04:05"))
 	}
@@ -157,11 +157,11 @@ func TestScheduledDateStartOfDay(t *testing.T) {
 func TestDeadlineEndOfDay(t *testing.T) {
 	// Deadlines should be at end of day (23:59:59)
 	_, deadline := ExtractDeadlineFromTitle("Task due:tomorrow")
-	
+
 	if deadline == nil {
 		t.Fatal("Expected deadline to be extracted")
 	}
-	
+
 	if deadline.Hour() != 23 || deadline.Minute() != 59 || deadline.Second() != 59 {
 		t.Errorf("Deadline should be at end of day, got %v", deadline.Format("15:04:05"))
 	}

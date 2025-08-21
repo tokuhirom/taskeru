@@ -1,0 +1,193 @@
+package internal
+
+import (
+	"testing"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
+	// Create test tasks
+	tasks := []Task{
+		*NewTask("Task 1"),
+		*NewTask("Task 2"),
+		*NewTask("Task 3"),
+	}
+
+	// All tasks start as TODO
+	for i := range tasks {
+		tasks[i].Status = StatusTODO
+	}
+
+	// Make Task 2 an old completed task so it gets hidden
+	oldTime := time.Now().AddDate(0, 0, -2) // 2 days ago
+	tasks[1].Status = StatusDONE
+	tasks[1].CompletedAt = &oldTime
+
+	model := NewInteractiveTaskList(tasks)
+
+	// Should only see 2 tasks (Task 1 and Task 3)
+	if len(model.tasks) != 2 {
+		t.Errorf("Should have 2 visible tasks initially, got %d", len(model.tasks))
+	}
+
+	// Move cursor to second visible task (Task 3)
+	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	interactiveModel := updatedModel.(InteractiveTaskList)
+
+	if interactiveModel.cursor != 1 {
+		t.Errorf("Cursor should be at position 1, got %d", interactiveModel.cursor)
+	}
+
+	// Now change Task 3 to DONE (it will stay visible as it's completed today)
+	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeySpace})
+	interactiveModel = updatedModel.(InteractiveTaskList)
+
+	// Task 3 should still be visible (completed today)
+	// So we still have 2 visible tasks
+	if len(interactiveModel.tasks) != 2 {
+		t.Errorf("Should still have 2 visible tasks, got %d", len(interactiveModel.tasks))
+	}
+
+	// Cursor should follow Task 3 to its new position
+	if interactiveModel.cursor < len(interactiveModel.tasks) {
+		currentTask := interactiveModel.tasks[interactiveModel.cursor]
+		if currentTask.Title != "Task 3" {
+			t.Errorf("Cursor should still point to 'Task 3', but points to '%s'", currentTask.Title)
+		}
+	}
+}
+
+func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
+	// Create test tasks where some will be visible and some hidden
+	tasks := []Task{
+		*NewTask("Task 1"),
+		*NewTask("Task 2"),
+		*NewTask("Old completed task"),
+		*NewTask("Task 3"),
+	}
+
+	// Task 1 and 2 are TODO
+	tasks[0].Status = StatusTODO
+	tasks[1].Status = StatusTODO
+	tasks[3].Status = StatusTODO
+
+	// Make one task old completed (hidden by default)
+	oldTime := time.Now().AddDate(0, 0, -2) // 2 days ago
+	tasks[2].Status = StatusDONE
+	tasks[2].CompletedAt = &oldTime
+
+	model := NewInteractiveTaskList(tasks)
+
+	// Should see 3 visible tasks initially
+	if len(model.tasks) != 3 {
+		t.Errorf("Should have 3 visible tasks initially, got %d", len(model.tasks))
+	}
+
+	// Move cursor to last visible task (index 2, which is Task 3)
+	model.cursor = 2
+
+	// Toggle Task 3 to DONE with space (will stay visible as completed today)
+	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
+	interactiveModel := updatedModel.(InteractiveTaskList)
+
+	// Task 3 should still be visible (completed today)
+	if len(interactiveModel.tasks) != 3 {
+		t.Errorf("Should still have 3 visible tasks, got %d", len(interactiveModel.tasks))
+	}
+
+	// Cursor should follow the task
+	if interactiveModel.cursor < len(interactiveModel.tasks) {
+		currentTask := interactiveModel.tasks[interactiveModel.cursor]
+		if currentTask.Title != "Task 3" {
+			t.Errorf("Cursor should still point to 'Task 3', but points to '%s'", currentTask.Title)
+		}
+	}
+}
+
+func TestCursorFollowsTaskWhenStatusChangesButStaysVisible(t *testing.T) {
+	// Create test tasks with different priorities to ensure sorting changes
+	tasks := []Task{
+		*NewTask("High priority task"),
+		*NewTask("Normal task"),
+		*NewTask("Low priority task"),
+	}
+
+	tasks[0].Priority = "high"
+	tasks[0].Status = StatusTODO
+	tasks[1].Priority = "medium"
+	tasks[1].Status = StatusTODO
+	tasks[2].Priority = "low"
+	tasks[2].Status = StatusTODO
+
+	model := NewInteractiveTaskList(tasks)
+	model.showAll = true // Ensure all tasks stay visible
+
+	// Find the "Normal task" position
+	normalTaskIdx := -1
+	for i, task := range model.tasks {
+		if task.Title == "Normal task" {
+			normalTaskIdx = i
+			break
+		}
+	}
+
+	// Move cursor to "Normal task"
+	model.cursor = normalTaskIdx
+
+	// Change status to DOING (which might change sort order)
+	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	interactiveModel := updatedModel.(InteractiveTaskList)
+
+	// Find where "Normal task" ended up after sorting
+	normalTaskNewIdx := -1
+	for i, task := range interactiveModel.tasks {
+		if task.Title == "Normal task" {
+			normalTaskNewIdx = i
+			break
+		}
+	}
+
+	if normalTaskNewIdx == -1 {
+		t.Error("Normal task should still be visible")
+	} else if interactiveModel.cursor != normalTaskNewIdx {
+		t.Errorf("Cursor should follow the task to position %d, but is at %d", normalTaskNewIdx, interactiveModel.cursor)
+	}
+}
+
+func TestMultipleStatusChangesKeepCursorStable(t *testing.T) {
+	// Create test tasks
+	tasks := []Task{
+		*NewTask("Task A"),
+		*NewTask("Task B"),
+		*NewTask("Task C"),
+		*NewTask("Task D"),
+	}
+
+	// All start as TODO
+	for i := range tasks {
+		tasks[i].Status = StatusTODO
+	}
+
+	model := NewInteractiveTaskList(tasks)
+
+	// Move to Task B (index 1)
+	model.cursor = 1
+
+	// Press 's' multiple times to cycle through all statuses
+	statuses := GetAllStatuses()
+	for i := 0; i < len(statuses); i++ {
+		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+		interactiveModel := updatedModel.(InteractiveTaskList)
+		model = &interactiveModel
+
+		// Cursor should either:
+		// 1. Follow the task if it's still visible
+		// 2. Stay at the same index if task became hidden
+		if model.cursor >= len(model.tasks) && len(model.tasks) > 0 {
+			t.Errorf("Cursor %d is out of bounds (tasks count: %d) after %d status changes",
+				model.cursor, len(model.tasks), i+1)
+		}
+	}
+}

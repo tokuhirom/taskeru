@@ -91,7 +91,7 @@ func ListCommand(projectFilter string) error {
 				fmt.Printf(" \x1b[90m(starts %s)\x1b[0m", task.ScheduledDate.Format("01-02"))
 			}
 		}
-		
+
 		// Display completion date for done/wontdo tasks (dim gray)
 		if (task.Status == internal.StatusDONE || task.Status == internal.StatusWONTDO) && task.CompletedAt != nil {
 			// Use dim gray color (ANSI 90) for completed date

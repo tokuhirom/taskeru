@@ -27,7 +27,7 @@ type InteractiveTaskList struct {
 	searchQuery     string
 	searchCursor    int
 	matchingTasks   map[string]bool // Track which tasks match the search
-	dateEditMode    string // "deadline" or "scheduled"
+	dateEditMode    string          // "deadline" or "scheduled"
 	dateEditBuffer  string
 	dateEditCursor  int
 }
@@ -70,7 +70,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle date edit mode
 		if m.dateEditMode != "" {
 			dateRunes := []rune(m.dateEditBuffer)
-			
+
 			switch msg.Type {
 			case tea.KeyEnter:
 				// Apply the date change
@@ -91,7 +91,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 									parsedDate = &t
 								}
 							}
-							
+
 							// Update the task
 							if m.dateEditMode == "deadline" {
 								m.allTasks[i].DueDate = parsedDate
@@ -99,7 +99,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								m.allTasks[i].ScheduledDate = parsedDate
 							}
 							m.allTasks[i].Updated = time.Now()
-							
+
 							// Update filtered view
 							m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
 							m.modified = true
@@ -154,11 +154,11 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		
+
 		// Handle search mode
 		if m.searchMode {
 			searchRunes := []rune(m.searchQuery)
-			
+
 			switch msg.Type {
 			case tea.KeyEnter:
 				// Exit search input mode but keep highlights
@@ -227,7 +227,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		
+
 		// Handle input mode
 		if m.inputMode {
 			runes := []rune(m.inputBuffer)
@@ -348,7 +348,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			m.quit = true
 			return m, tea.Quit
-		
+
 		case "esc":
 			// Clear search highlights if search is active
 			if m.searchQuery != "" {
@@ -389,16 +389,21 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
 
 						// Find the task's new position and move cursor there
+						foundTask := false
 						for j, task := range m.tasks {
 							if task.ID == taskID {
 								m.cursor = j
+								foundTask = true
 								break
 							}
 						}
 
-						// Ensure cursor is within bounds
-						if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-							m.cursor = len(m.tasks) - 1
+						// If task is no longer visible (e.g., DONE task hidden), keep cursor at same position
+						if !foundTask {
+							// Ensure cursor is within bounds
+							if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
+								m.cursor = len(m.tasks) - 1
+							}
 						}
 
 						m.modified = true
@@ -445,7 +450,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.tasks) && !m.confirmDelete {
 				m.confirmDelete = true
 			}
-		
+
 		case "D":
 			// Set deadline for current task
 			if m.cursor < len(m.tasks) && !m.confirmDelete {
@@ -459,7 +464,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.dateEditCursor = len(m.dateEditBuffer)
 			}
-		
+
 		case "S":
 			// Set scheduled date for current task
 			if m.cursor < len(m.tasks) && !m.confirmDelete {
@@ -531,7 +536,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.searchCursor = 0
 				m.matchingTasks = make(map[string]bool)
 			}
-		
+
 		case "N":
 			// Jump to previous match when search is active
 			if !m.confirmDelete && m.searchQuery != "" {
@@ -572,6 +577,8 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if taskIdx >= 0 {
+					// Save the task ID before any changes
+					currentTaskID := m.allTasks[taskIdx].ID
 					currentStatus := m.allTasks[taskIdx].Status
 					allStatuses := GetAllStatuses()
 
@@ -593,17 +600,21 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
 
 					// Find the task's new position and move cursor there
-					currentTaskID := m.allTasks[taskIdx].ID
+					foundTask := false
 					for i, task := range m.tasks {
 						if task.ID == currentTaskID {
 							m.cursor = i
+							foundTask = true
 							break
 						}
 					}
 
-					// Ensure cursor is within bounds
-					if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-						m.cursor = len(m.tasks) - 1
+					// If task is no longer visible (e.g., DONE task hidden), keep cursor at same position
+					if !foundTask {
+						// Ensure cursor is within bounds
+						if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
+							m.cursor = len(m.tasks) - 1
+						}
 					}
 
 					m.modified = true
@@ -700,11 +711,11 @@ func (m InteractiveTaskList) View() string {
 
 		// Check if this task matches the search (highlight even when not in search mode)
 		isMatch := m.searchQuery != "" && m.matchingTasks[task.ID]
-		
+
 		// Add color based on status or highlight for search match
 		var line string
 		var statusColor string
-		
+
 		if isMatch {
 			// Highlight matching tasks with yellow background
 			statusColor = "\x1b[43m\x1b[30m" // yellow background, black text
@@ -747,7 +758,7 @@ func (m InteractiveTaskList) View() string {
 				line += fmt.Sprintf(" \x1b[90m(starts %s)\x1b[0m", task.ScheduledDate.Format("01-02"))
 			}
 		}
-		
+
 		// Add completion date for done/wontdo tasks (dim gray)
 		if task.Status == StatusDONE || task.Status == StatusWONTDO {
 			if task.CompletedAt != nil {
@@ -782,7 +793,7 @@ func (m InteractiveTaskList) View() string {
 		// Show search input
 		searchRunes := []rune(m.searchQuery)
 		var displayStr string
-		
+
 		// Add cursor display
 		if m.searchCursor == 0 {
 			displayStr = "│" + m.searchQuery
@@ -791,7 +802,7 @@ func (m InteractiveTaskList) View() string {
 		} else {
 			displayStr = m.searchQuery + "│"
 		}
-		
+
 		s.WriteString("\n\n🔍 Search: " + displayStr)
 		if m.searchQuery != "" {
 			s.WriteString(fmt.Sprintf(" (%d matches)", len(m.matchingTasks)))
@@ -801,7 +812,7 @@ func (m InteractiveTaskList) View() string {
 		// Display date edit input
 		dateRunes := []rune(m.dateEditBuffer)
 		var displayStr string
-		
+
 		if m.dateEditCursor == 0 {
 			displayStr = "│" + m.dateEditBuffer
 		} else if m.dateEditCursor < len(dateRunes) {
@@ -809,12 +820,12 @@ func (m InteractiveTaskList) View() string {
 		} else {
 			displayStr = m.dateEditBuffer + "│"
 		}
-		
+
 		dateType := "deadline"
 		if m.dateEditMode == "scheduled" {
 			dateType = "scheduled date"
 		}
-		
+
 		s.WriteString(fmt.Sprintf("\n\n📅 Set %s: %s", dateType, displayStr))
 		s.WriteString("\n\nEnter: apply • Esc: cancel • Format: today/tomorrow/monday/2024-12-31/12-25")
 	} else if m.inputMode {
@@ -885,18 +896,18 @@ func (m InteractiveTaskList) ShouldReload() bool {
 // updateMatches updates which tasks match the current search query
 func (m *InteractiveTaskList) updateMatches() {
 	m.matchingTasks = make(map[string]bool)
-	
+
 	if m.searchQuery == "" {
 		return
 	}
-	
+
 	query := strings.ToLower(m.searchQuery)
-	
+
 	for _, task := range m.tasks {
 		// Search in title, projects, and note
 		titleMatch := strings.Contains(strings.ToLower(task.Title), query)
 		noteMatch := strings.Contains(strings.ToLower(task.Note), query)
-		
+
 		// Check projects
 		projectMatch := false
 		for _, project := range task.Projects {
@@ -905,7 +916,7 @@ func (m *InteractiveTaskList) updateMatches() {
 				break
 			}
 		}
-		
+
 		if titleMatch || noteMatch || projectMatch {
 			m.matchingTasks[task.ID] = true
 		}
@@ -927,10 +938,10 @@ func (m *InteractiveTaskList) jumpToNextMatch() {
 	if len(m.matchingTasks) == 0 {
 		return
 	}
-	
+
 	// Start searching from the next position
 	startPos := m.cursor + 1
-	
+
 	// Search from current position to end
 	for i := startPos; i < len(m.tasks); i++ {
 		if m.matchingTasks[m.tasks[i].ID] {
@@ -938,7 +949,7 @@ func (m *InteractiveTaskList) jumpToNextMatch() {
 			return
 		}
 	}
-	
+
 	// Wrap around to beginning
 	for i := 0; i < startPos && i < len(m.tasks); i++ {
 		if m.matchingTasks[m.tasks[i].ID] {
@@ -953,10 +964,10 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 	if len(m.matchingTasks) == 0 {
 		return
 	}
-	
+
 	// Start searching from the previous position
 	startPos := m.cursor - 1
-	
+
 	// Search from current position to beginning
 	for i := startPos; i >= 0; i-- {
 		if m.matchingTasks[m.tasks[i].ID] {
@@ -964,7 +975,7 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 			return
 		}
 	}
-	
+
 	// Wrap around to end
 	for i := len(m.tasks) - 1; i > startPos && i >= 0; i-- {
 		if m.matchingTasks[m.tasks[i].ID] {

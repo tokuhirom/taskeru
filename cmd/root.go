@@ -30,7 +30,7 @@ func Execute() {
 
 	// Get command and remaining args
 	args := flag.Args()
-	
+
 	if len(args) == 0 {
 		// No command, run interactive mode
 		if err := InteractiveCommand(); err != nil {

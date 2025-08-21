@@ -9,10 +9,10 @@ import (
 
 func TestEditorCommandWithVim(t *testing.T) {
 	tests := []struct {
-		name           string
-		editorEnv      string
-		expectedArgs   []string
-		description    string
+		name         string
+		editorEnv    string
+		expectedArgs []string
+		description  string
 	}{
 		{
 			name:         "vim should use + flag",

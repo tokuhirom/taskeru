@@ -250,7 +250,6 @@ func editTaskNote(task *Task) error {
 ## テスト方針
 
 - 単体テスト: 各パッケージの機能をテスト
-- 統合テスト: CLIコマンドの動作確認
 - atomic writeのテスト: データ整合性の検証
 
 ## ビルドとデプロイ
@@ -280,11 +279,6 @@ Claude Codeが実際にコマンドを実行して動作確認する方法では
    - ファイル名: `*_test.go`
    - 例: `task_test.go`, `storage_test.go`
 
-2. **統合テスト（Integration Test）**
-   - CLIコマンドの動作を確認
-   - 一時ファイルを使用してデータの永続化も含めてテスト
-   - `cmd/` パッケージに対してテストを実装
-
 3. **テスト実行**
    ```bash
    # 全テスト実行
@@ -303,23 +297,3 @@ Claude Codeが実際にコマンドを実行して動作確認する方法では
    - テスト終了時に自動的にクリーンアップされる
    - 実際のユーザーデータ (`~/todo.json`) には絶対に触れない
 
-5. **テスト項目の例**
-   - タスクの追加・更新・削除
-   - プロジェクトタグの抽出と表示
-   - 色分け機能（GetProjectColor）
-   - ファイルI/O（atomic write）
-   - エラーハンドリング
-
-### テスト時のファイルパス指定
-
-開発中の手動テストでは -t オプションを使用：
-
-```bash
-# -t オプションで一時ファイルを指定
-./taskeru -t /tmp/test-todo.json add "テストタスク"
-./taskeru -t /tmp/test-todo.json ls
-./taskeru -t /tmp/test-todo.json  # インタラクティブモード
-
-# テスト後はファイルを削除
-rm /tmp/test-todo.json
-```

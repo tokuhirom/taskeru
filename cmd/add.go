@@ -16,10 +16,10 @@ func AddCommand(args []string) error {
 
 	// Extract scheduled date from title
 	cleanTitle, scheduled := internal.ExtractScheduledDateFromTitle(title)
-	
+
 	// Extract deadline from title
 	cleanTitle, deadline := internal.ExtractDeadlineFromTitle(cleanTitle)
-	
+
 	// Extract projects from title
 	cleanTitle, projects := internal.ExtractProjectsFromTitle(cleanTitle)
 

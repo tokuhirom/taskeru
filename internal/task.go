@@ -10,17 +10,17 @@ import (
 )
 
 type Task struct {
-	ID           string     `json:"id"`
-	Title        string     `json:"title"`
-	Created      time.Time  `json:"created"`
-	Updated      time.Time  `json:"updated"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
-	DueDate      *time.Time `json:"due_date,omitempty"`
+	ID            string     `json:"id"`
+	Title         string     `json:"title"`
+	Created       time.Time  `json:"created"`
+	Updated       time.Time  `json:"updated"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	DueDate       *time.Time `json:"due_date,omitempty"`
 	ScheduledDate *time.Time `json:"scheduled_date,omitempty"`
-	Priority     string     `json:"priority,omitempty"`
-	Status       string     `json:"status"`
-	Note         string     `json:"note,omitempty"`
-	Projects     []string   `json:"projects,omitempty"`
+	Priority      string     `json:"priority,omitempty"`
+	Status        string     `json:"status"`
+	Note          string     `json:"note,omitempty"`
+	Projects      []string   `json:"projects,omitempty"`
 }
 
 // Available task statuses
@@ -159,7 +159,7 @@ func (t *Task) IsFutureScheduled() bool {
 	if t.ScheduledDate == nil {
 		return false
 	}
-	
+
 	now := time.Now()
 	// Tasks scheduled for today or earlier are not "future"
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
@@ -213,19 +213,19 @@ func ExtractProjectsFromTitle(title string) (string, []string) {
 func ExtractDeadlineFromTitle(title string) (string, *time.Time) {
 	// Pattern for due:date format
 	dueRegex := regexp.MustCompile(`\s+due:(\S+)`)
-	
+
 	match := dueRegex.FindStringSubmatch(title)
 	if match == nil {
 		return title, nil
 	}
-	
+
 	dateStr := match[1]
 	var deadline time.Time
-	
+
 	// Parse relative dates
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	
+
 	switch strings.ToLower(dateStr) {
 	case "today":
 		deadline = today.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
@@ -256,7 +256,7 @@ func ExtractDeadlineFromTitle(title string) (string, *time.Time) {
 			"1/2",
 			"1-2",
 		}
-		
+
 		var err error
 		for _, format := range formats {
 			deadline, err = time.Parse(format, dateStr)
@@ -275,17 +275,17 @@ func ExtractDeadlineFromTitle(title string) (string, *time.Time) {
 				break
 			}
 		}
-		
+
 		if err != nil {
 			// Could not parse date, return original title
 			return title, nil
 		}
 	}
-	
+
 	// Remove the due:date part from title
 	cleanTitle := dueRegex.ReplaceAllString(title, "")
 	cleanTitle = strings.TrimSpace(cleanTitle)
-	
+
 	return cleanTitle, &deadline
 }
 
@@ -302,19 +302,19 @@ func nextWeekday(from time.Time, weekday time.Weekday) time.Time {
 func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
 	// Pattern for scheduled:date or sched:date format
 	schedRegex := regexp.MustCompile(`\s+(scheduled|sched):(\S+)`)
-	
+
 	match := schedRegex.FindStringSubmatch(title)
 	if match == nil {
 		return title, nil
 	}
-	
+
 	dateStr := match[2]
 	var scheduled time.Time
-	
+
 	// Parse relative dates (reuse same logic as deadline)
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	
+
 	switch strings.ToLower(dateStr) {
 	case "today":
 		scheduled = today
@@ -344,7 +344,7 @@ func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
 			"1/2",
 			"1-2",
 		}
-		
+
 		var err error
 		for _, format := range formats {
 			scheduled, err = time.Parse(format, dateStr)
@@ -363,17 +363,17 @@ func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
 				break
 			}
 		}
-		
+
 		if err != nil {
 			// Could not parse date, return original title
 			return title, nil
 		}
 	}
-	
+
 	// Remove the scheduled:date part from title
 	cleanTitle := schedRegex.ReplaceAllString(title, "")
 	cleanTitle = strings.TrimSpace(cleanTitle)
-	
+
 	return cleanTitle, &scheduled
 }
 

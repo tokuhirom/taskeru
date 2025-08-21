@@ -41,10 +41,10 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		projectFilter  string
-		expectedCount  int
-		expectedTasks  []string
+		name          string
+		projectFilter string
+		expectedCount int
+		expectedTasks []string
 	}{
 		{
 			name:          "No filter shows all tasks",

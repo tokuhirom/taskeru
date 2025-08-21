@@ -157,10 +157,10 @@ func InteractiveCommand() error {
 		if newTaskTitle != "" {
 			// Extract scheduled date from title
 			cleanTitle, scheduled := internal.ExtractScheduledDateFromTitle(newTaskTitle)
-			
+
 			// Extract deadline from title
 			cleanTitle, deadline := internal.ExtractDeadlineFromTitle(cleanTitle)
-			
+
 			// Extract projects from title
 			cleanTitle, projects := internal.ExtractProjectsFromTitle(cleanTitle)
 
@@ -315,7 +315,7 @@ func editTaskNoteInteractive(task *internal.Task) error {
 
 	// If using vim or nvim, add + to start at the last line
 	var cmd *exec.Cmd
-	if editor == "vim" || editor == "nvim" || 
+	if editor == "vim" || editor == "nvim" ||
 		strings.HasSuffix(editor, "/vim") || strings.HasSuffix(editor, "/nvim") {
 		cmd = exec.Command(editor, "+", tempFile.Name())
 	} else {
