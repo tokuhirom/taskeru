@@ -963,14 +963,30 @@ func (m InteractiveTaskList) View() string {
 		s.WriteString("\n\n📁 Select project filter:\n\n")
 		
 		projects := m.getAvailableProjects()
-		allProjects := append([]string{"[All tasks]"}, projects...)
 		
-		for i, project := range allProjects {
+		// First option is "All tasks" with total count
+		cursor := "  "
+		if m.projectCursor == 0 {
+			cursor = "> "
+		}
+		allVisibleCount := len(FilterVisibleTasks(m.allTasks, m.showAll))
+		s.WriteString(fmt.Sprintf("%s[All tasks] (%d)\n", cursor, allVisibleCount))
+		
+		// Show each project with color and count
+		for i, project := range projects {
 			cursor := "  "
-			if i == m.projectCursor {
+			if i+1 == m.projectCursor {
 				cursor = "> "
 			}
-			s.WriteString(fmt.Sprintf("%s%s\n", cursor, project))
+			
+			// Count tasks for this project
+			projectTasks := FilterTasksByProject(m.allTasks, project)
+			visibleProjectTasks := FilterVisibleTasks(projectTasks, m.showAll)
+			count := len(visibleProjectTasks)
+			
+			// Get project color
+			color := GetProjectColor(project)
+			s.WriteString(fmt.Sprintf("%s%s+%s\x1b[0m (%d)\n", cursor, color, project, count))
 		}
 		
 		s.WriteString("\n↑/k: up • ↓/j: down • Enter: select • Esc/q: cancel")
