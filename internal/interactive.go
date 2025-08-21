@@ -27,6 +27,9 @@ type InteractiveTaskList struct {
 	searchQuery     string
 	searchCursor    int
 	matchingTasks   map[string]bool // Track which tasks match the search
+	dateEditMode    string // "deadline" or "scheduled"
+	dateEditBuffer  string
+	dateEditCursor  int
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
@@ -51,6 +54,9 @@ func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
 		searchQuery:     "",
 		searchCursor:    0,
 		matchingTasks:   make(map[string]bool),
+		dateEditMode:    "",
+		dateEditBuffer:  "",
+		dateEditCursor:  0,
 	}
 }
 
@@ -61,6 +67,94 @@ func (m InteractiveTaskList) Init() tea.Cmd {
 func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle date edit mode
+		if m.dateEditMode != "" {
+			dateRunes := []rune(m.dateEditBuffer)
+			
+			switch msg.Type {
+			case tea.KeyEnter:
+				// Apply the date change
+				if m.cursor < len(m.tasks) {
+					taskID := m.tasks[m.cursor].ID
+					for i := range m.allTasks {
+						if m.allTasks[i].ID == taskID {
+							// Parse the date
+							var parsedDate *time.Time
+							if m.dateEditBuffer != "" {
+								// Try to parse using ExtractDeadlineFromTitle logic
+								_, deadline := ExtractDeadlineFromTitle("dummy due:" + m.dateEditBuffer)
+								if m.dateEditMode == "deadline" {
+									parsedDate = deadline
+								} else if m.dateEditMode == "scheduled" && deadline != nil {
+									// Convert to start of day for scheduled date
+									t := time.Date(deadline.Year(), deadline.Month(), deadline.Day(), 0, 0, 0, 0, deadline.Location())
+									parsedDate = &t
+								}
+							}
+							
+							// Update the task
+							if m.dateEditMode == "deadline" {
+								m.allTasks[i].DueDate = parsedDate
+							} else if m.dateEditMode == "scheduled" {
+								m.allTasks[i].ScheduledDate = parsedDate
+							}
+							m.allTasks[i].Updated = time.Now()
+							
+							// Update filtered view
+							m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+							m.modified = true
+							break
+						}
+					}
+				}
+				m.dateEditMode = ""
+				m.dateEditBuffer = ""
+				m.dateEditCursor = 0
+			case tea.KeyEsc:
+				// Cancel date edit
+				m.dateEditMode = ""
+				m.dateEditBuffer = ""
+				m.dateEditCursor = 0
+			case tea.KeyCtrlA:
+				m.dateEditCursor = 0
+			case tea.KeyCtrlE:
+				m.dateEditCursor = len(dateRunes)
+			case tea.KeyCtrlF, tea.KeyRight:
+				if m.dateEditCursor < len(dateRunes) {
+					m.dateEditCursor++
+				}
+			case tea.KeyCtrlB, tea.KeyLeft:
+				if m.dateEditCursor > 0 {
+					m.dateEditCursor--
+				}
+			case tea.KeyCtrlH, tea.KeyBackspace:
+				if m.dateEditCursor > 0 && len(dateRunes) > 0 {
+					m.dateEditBuffer = string(append(dateRunes[:m.dateEditCursor-1], dateRunes[m.dateEditCursor:]...))
+					m.dateEditCursor--
+				}
+			case tea.KeyDelete:
+				if m.dateEditCursor < len(dateRunes) {
+					m.dateEditBuffer = string(append(dateRunes[:m.dateEditCursor], dateRunes[m.dateEditCursor+1:]...))
+				}
+			case tea.KeyRunes:
+				newRunes := append(dateRunes[:m.dateEditCursor], append(msg.Runes, dateRunes[m.dateEditCursor:]...)...)
+				m.dateEditBuffer = string(newRunes)
+				m.dateEditCursor += len(msg.Runes)
+			case tea.KeySpace:
+				newRunes := append(dateRunes[:m.dateEditCursor], append([]rune{' '}, dateRunes[m.dateEditCursor:]...)...)
+				m.dateEditBuffer = string(newRunes)
+				m.dateEditCursor++
+			default:
+				str := msg.String()
+				if len(str) == 1 && str != " " {
+					newRunes := append(dateRunes[:m.dateEditCursor], append([]rune(str), dateRunes[m.dateEditCursor:]...)...)
+					m.dateEditBuffer = string(newRunes)
+					m.dateEditCursor++
+				}
+			}
+			return m, nil
+		}
+		
 		// Handle search mode
 		if m.searchMode {
 			searchRunes := []rune(m.searchQuery)
@@ -350,6 +444,34 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Delete task - first press shows confirmation
 			if m.cursor < len(m.tasks) && !m.confirmDelete {
 				m.confirmDelete = true
+			}
+		
+		case "D":
+			// Set deadline for current task
+			if m.cursor < len(m.tasks) && !m.confirmDelete {
+				m.dateEditMode = "deadline"
+				// Pre-fill with current deadline if exists
+				task := m.tasks[m.cursor]
+				if task.DueDate != nil {
+					m.dateEditBuffer = task.DueDate.Format("2006-01-02")
+				} else {
+					m.dateEditBuffer = ""
+				}
+				m.dateEditCursor = len(m.dateEditBuffer)
+			}
+		
+		case "S":
+			// Set scheduled date for current task
+			if m.cursor < len(m.tasks) && !m.confirmDelete {
+				m.dateEditMode = "scheduled"
+				// Pre-fill with current scheduled date if exists
+				task := m.tasks[m.cursor]
+				if task.ScheduledDate != nil {
+					m.dateEditBuffer = task.ScheduledDate.Format("2006-01-02")
+				} else {
+					m.dateEditBuffer = ""
+				}
+				m.dateEditCursor = len(m.dateEditBuffer)
 			}
 
 		case "y":
@@ -675,6 +797,26 @@ func (m InteractiveTaskList) View() string {
 			s.WriteString(fmt.Sprintf(" (%d matches)", len(m.matchingTasks)))
 		}
 		s.WriteString("\n\nEnter: exit input mode • Esc: exit input mode • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace")
+	} else if m.dateEditMode != "" {
+		// Display date edit input
+		dateRunes := []rune(m.dateEditBuffer)
+		var displayStr string
+		
+		if m.dateEditCursor == 0 {
+			displayStr = "│" + m.dateEditBuffer
+		} else if m.dateEditCursor < len(dateRunes) {
+			displayStr = string(dateRunes[:m.dateEditCursor]) + "│" + string(dateRunes[m.dateEditCursor:])
+		} else {
+			displayStr = m.dateEditBuffer + "│"
+		}
+		
+		dateType := "deadline"
+		if m.dateEditMode == "scheduled" {
+			dateType = "scheduled date"
+		}
+		
+		s.WriteString(fmt.Sprintf("\n\n📅 Set %s: %s", dateType, displayStr))
+		s.WriteString("\n\nEnter: apply • Esc: cancel • Format: today/tomorrow/monday/2024-12-31/12-25")
 	} else if m.inputMode {
 		// Display input with cursor
 		runes := []rune(m.inputBuffer)
@@ -693,7 +835,7 @@ func (m InteractiveTaskList) View() string {
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
-		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • space: toggle done • /: search")
+		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • D: deadline • S: scheduled • space: toggle done • /: search")
 		if m.searchQuery != "" && !m.searchMode {
 			s.WriteString(" • n/N: next/prev match • ESC: clear search")
 		}
