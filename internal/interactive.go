@@ -55,7 +55,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle input mode
 		if m.inputMode {
 			runes := []rune(m.inputBuffer)
-			
+
 			switch msg.Type {
 			case tea.KeyEnter:
 				// Create new task
@@ -111,14 +111,14 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break // Stop if we hit a space
 						}
 					}
-					
+
 					if lastPlusIdx >= 0 && lastPlusIdx < m.inputCursor-1 {
 						// Get the partial project name
-						partial := string(runes[lastPlusIdx+1:m.inputCursor])
-						
+						partial := string(runes[lastPlusIdx+1 : m.inputCursor])
+
 						// Get all existing projects
 						allProjects := GetAllProjects(m.allTasks)
-						
+
 						// Find matching projects
 						var matches []string
 						for _, project := range allProjects {
@@ -126,7 +126,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								matches = append(matches, project)
 							}
 						}
-						
+
 						// If exactly one match, complete it
 						if len(matches) == 1 {
 							// Replace the partial with the full project name
@@ -167,22 +167,22 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		
+
 		switch msg.String() {
 		case "ctrl+c", "q", "esc":
 			m.quit = true
 			return m, tea.Quit
-			
+
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 			}
-			
+
 		case "down", "j":
 			if m.cursor < len(m.tasks)-1 {
 				m.cursor++
 			}
-			
+
 		case " ":
 			// Quick toggle between TODO and DONE (most common transition)
 			if m.cursor < len(m.tasks) {
@@ -195,11 +195,11 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						} else {
 							m.allTasks[i].SetStatus(StatusDONE)
 						}
-						
+
 						// Re-sort and update filtered view
 						SortTasks(m.allTasks)
 						m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
-						
+
 						// Find the task's new position and move cursor there
 						for j, task := range m.tasks {
 							if task.ID == taskID {
@@ -207,18 +207,18 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								break
 							}
 						}
-						
+
 						// Ensure cursor is within bounds
 						if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
 							m.cursor = len(m.tasks) - 1
 						}
-						
+
 						m.modified = true
 						break
 					}
 				}
 			}
-			
+
 		case "a":
 			// Toggle show all tasks
 			m.showAll = !m.showAll
@@ -226,11 +226,11 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.tasks) {
 				oldCursorTaskID = m.tasks[m.cursor].ID
 			}
-			
+
 			// Re-sort and filter
 			SortTasks(m.allTasks)
 			m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
-			
+
 			// Try to maintain cursor position on the same task
 			if oldCursorTaskID != "" {
 				for i, task := range m.tasks {
@@ -240,31 +240,31 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-			
+
 			// Ensure cursor is within bounds
 			if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
 				m.cursor = len(m.tasks) - 1
 			}
-			
+
 		case "e":
 			// Edit task (open editor)
 			if m.cursor < len(m.tasks) {
 				return m, tea.Quit
 			}
-			
+
 		case "d":
 			// Delete task - first press shows confirmation
 			if m.cursor < len(m.tasks) && !m.confirmDelete {
 				m.confirmDelete = true
 			}
-			
+
 		case "y":
 			// Confirm deletion
 			if m.confirmDelete && m.cursor < len(m.tasks) {
 				// Mark task as deleted
 				taskID := m.tasks[m.cursor].ID
 				m.deletedTaskIDs = append(m.deletedTaskIDs, taskID)
-				
+
 				// Remove from allTasks
 				newAllTasks := []Task{}
 				for _, t := range m.allTasks {
@@ -273,37 +273,37 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				m.allTasks = newAllTasks
-				
+
 				// Update filtered view
 				m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
-				
+
 				// Adjust cursor if necessary
 				if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
 					m.cursor = len(m.tasks) - 1
 				}
-				
+
 				m.modified = true
 				m.confirmDelete = false
 			}
-			
+
 		case "n":
 			// Cancel deletion
 			if m.confirmDelete {
 				m.confirmDelete = false
 			}
-			
+
 		case "g":
 			// Jump to first task
 			if !m.confirmDelete && !m.inputMode {
 				m.cursor = 0
 			}
-			
+
 		case "G":
 			// Jump to last task
 			if !m.confirmDelete && !m.inputMode && len(m.tasks) > 0 {
 				m.cursor = len(m.tasks) - 1
 			}
-			
+
 		case "c":
 			// Create new task
 			if !m.confirmDelete {
@@ -311,21 +311,21 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputBuffer = ""
 				m.inputCursor = 0
 			}
-			
+
 		case "r":
 			// Reload tasks
 			if !m.confirmDelete && !m.inputMode {
 				m.shouldReload = true
 				return m, tea.Quit
 			}
-			
+
 		case "p":
 			// Show project view
 			if !m.confirmDelete && !m.inputMode {
 				m.showProjectView = true
 				return m, tea.Quit
 			}
-			
+
 		case "s":
 			// Cycle through statuses
 			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
@@ -336,11 +336,11 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
-				
+
 				if taskIdx >= 0 {
 					currentStatus := m.allTasks[taskIdx].Status
 					allStatuses := GetAllStatuses()
-					
+
 					// Find current status index
 					currentIdx := 0
 					for i, s := range allStatuses {
@@ -349,15 +349,15 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break
 						}
 					}
-					
+
 					// Cycle to next status
 					nextIdx := (currentIdx + 1) % len(allStatuses)
 					m.allTasks[taskIdx].SetStatus(allStatuses[nextIdx])
-					
+
 					// Re-sort and update filtered view
 					SortTasks(m.allTasks)
 					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
-					
+
 					// Find the task's new position and move cursor there
 					currentTaskID := m.allTasks[taskIdx].ID
 					for i, task := range m.tasks {
@@ -366,16 +366,16 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break
 						}
 					}
-					
+
 					// Ensure cursor is within bounds
 					if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
 						m.cursor = len(m.tasks) - 1
 					}
-					
+
 					m.modified = true
 				}
 			}
-			
+
 		case "+":
 			// Increase priority
 			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
@@ -387,14 +387,14 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
-				
+
 				if taskIdx >= 0 {
 					m.allTasks[taskIdx].IncreasePriority()
-					
+
 					// Re-sort and update filtered view
 					SortTasks(m.allTasks)
 					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
-					
+
 					// Find the task's new position and move cursor there
 					for i, task := range m.tasks {
 						if task.ID == currentTaskID {
@@ -402,11 +402,11 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break
 						}
 					}
-					
+
 					m.modified = true
 				}
 			}
-			
+
 		case "-":
 			// Decrease priority
 			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
@@ -418,14 +418,14 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						break
 					}
 				}
-				
+
 				if taskIdx >= 0 {
 					m.allTasks[taskIdx].DecreasePriority()
-					
+
 					// Re-sort and update filtered view
 					SortTasks(m.allTasks)
 					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
-					
+
 					// Find the task's new position and move cursor there
 					for i, task := range m.tasks {
 						if task.ID == currentTaskID {
@@ -433,13 +433,13 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break
 						}
 					}
-					
+
 					m.modified = true
 				}
 			}
 		}
 	}
-	
+
 	return m, nil
 }
 
@@ -447,23 +447,23 @@ func (m InteractiveTaskList) View() string {
 	if m.quit {
 		return ""
 	}
-	
+
 	if len(m.tasks) == 0 {
 		return "No tasks found.\n\nPress q to quit."
 	}
-	
+
 	var s strings.Builder
 	s.WriteString("Tasks:\n\n")
-	
+
 	for i, task := range m.tasks {
 		cursor := "  "
 		if m.cursor == i {
 			cursor = "> "
 		}
-		
+
 		status := task.DisplayStatus()
 		priority := task.DisplayPriority()
-		
+
 		// Add color based on status
 		var line string
 		var statusColor string
@@ -479,9 +479,9 @@ func (m InteractiveTaskList) View() string {
 		default: // TODO
 			statusColor = "\x1b[37m" // white
 		}
-		
+
 		line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
-		
+
 		// Add projects with color
 		if len(task.Projects) > 0 {
 			for _, project := range task.Projects {
@@ -489,7 +489,7 @@ func (m InteractiveTaskList) View() string {
 				line += fmt.Sprintf(" %s+%s\x1b[0m", projectColor, project)
 			}
 		}
-		
+
 		// Add completion date for done/wontdo tasks (dim gray)
 		if task.Status == StatusDONE || task.Status == StatusWONTDO {
 			if task.CompletedAt != nil {
@@ -500,12 +500,12 @@ func (m InteractiveTaskList) View() string {
 		line += "\n"
 		s.WriteString(line)
 	}
-	
+
 	if m.inputMode {
 		// Display input with cursor
 		runes := []rune(m.inputBuffer)
 		var displayStr string
-		
+
 		if m.inputCursor == 0 {
 			displayStr = "_" + m.inputBuffer
 		} else if m.inputCursor >= len(runes) {
@@ -513,7 +513,7 @@ func (m InteractiveTaskList) View() string {
 		} else {
 			displayStr = string(runes[:m.inputCursor]) + "_" + string(runes[m.inputCursor:])
 		}
-		
+
 		s.WriteString("\n\n📝 New task title: " + displayStr)
 		s.WriteString("\n\nEnter: create • Esc: cancel • Tab: complete project • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace • Ctrl+K: kill • Ctrl+D: delete")
 	} else if m.confirmDelete {
@@ -527,7 +527,7 @@ func (m InteractiveTaskList) View() string {
 			s.WriteString(" • *modified*")
 		}
 	}
-	
+
 	return s.String()
 }
 
@@ -569,18 +569,18 @@ func (m InteractiveTaskList) ShouldShowProjectView() bool {
 func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, bool, error) {
 	model := NewInteractiveTaskList(tasks)
 	p := tea.NewProgram(model)
-	
+
 	result, err := p.Run()
 	if err != nil {
 		return nil, false, nil, nil, "", false, false, err
 	}
-	
+
 	finalModel := result.(InteractiveTaskList)
-	
+
 	// Check if user wants to edit a task
 	if finalModel.ShouldEdit() {
 		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), finalModel.ShouldShowProjectView(), nil
 	}
-	
+
 	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), finalModel.ShouldShowProjectView(), nil
 }

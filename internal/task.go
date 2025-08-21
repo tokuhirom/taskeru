@@ -25,7 +25,7 @@ type Task struct {
 // Available task statuses
 const (
 	StatusTODO    = "TODO"
-	StatusDOING   = "DOING"  
+	StatusDOING   = "DOING"
 	StatusWAITING = "WAITING"
 	StatusDONE    = "DONE"
 	StatusWONTDO  = "WONTDO"
@@ -98,16 +98,16 @@ func (t *Task) SetStatus(status string) {
 			break
 		}
 	}
-	
+
 	if !isValid {
 		return
 	}
-	
+
 	oldStatus := t.Status
 	t.Status = status
 	now := time.Now()
 	t.Updated = now
-	
+
 	// Record completion time when marking as done or wontdo
 	if (status == StatusDONE || status == StatusWONTDO) && oldStatus != StatusDONE && oldStatus != StatusWONTDO {
 		t.CompletedAt = &now
@@ -137,19 +137,19 @@ func (t *Task) IsOldCompleted() bool {
 	if (t.Status != StatusDONE && t.Status != StatusWONTDO) || t.CompletedAt == nil {
 		return false
 	}
-	
+
 	// Check if completed before today (with 4 AM as day boundary)
 	// Tasks completed after 4 AM yesterday are still "today's tasks"
 	now := time.Now()
-	
+
 	// Calculate today's 4 AM cutoff
 	todayAt4AM := time.Date(now.Year(), now.Month(), now.Day(), 4, 0, 0, 0, now.Location())
-	
+
 	// If current time is before 4 AM, use yesterday's 4 AM as the cutoff
 	if now.Before(todayAt4AM) {
 		todayAt4AM = todayAt4AM.AddDate(0, 0, -1)
 	}
-	
+
 	return t.CompletedAt.Before(todayAt4AM)
 }
 
@@ -157,7 +157,7 @@ func FilterVisibleTasks(tasks []Task, showAll bool) []Task {
 	if showAll {
 		return tasks
 	}
-	
+
 	var visible []Task
 	for _, task := range tasks {
 		if !task.IsOldCompleted() {
@@ -172,27 +172,27 @@ func ExtractProjectsFromTitle(title string) (string, []string) {
 	// Extract project tags only from the end of the string
 	// Pattern: (whitespace or start) followed by +project at the end
 	projectEndRegex := regexp.MustCompile(`(\s+|^)\+(\S+)\s*$`)
-	
+
 	var projects []string
 	cleanTitle := title
-	
+
 	// Keep extracting project tags from the end until no more are found
 	for {
 		match := projectEndRegex.FindStringSubmatch(cleanTitle)
 		if match == nil {
 			break
 		}
-		
+
 		// Add project to the beginning (since we're extracting from the end)
 		// match[2] is the project name (match[1] is the whitespace or start)
 		projects = append([]string{match[2]}, projects...)
-		
+
 		// Remove the matched project tag from the string
 		cleanTitle = projectEndRegex.ReplaceAllString(cleanTitle, "")
 	}
-	
+
 	cleanTitle = strings.TrimSpace(cleanTitle)
-	
+
 	return cleanTitle, projects
 }
 
@@ -200,7 +200,7 @@ func ExtractProjectsFromTitle(title string) (string, []string) {
 func GetAllProjects(tasks []Task) []string {
 	projectMap := make(map[string]bool)
 	var projects []string
-	
+
 	for _, task := range tasks {
 		for _, project := range task.Projects {
 			if !projectMap[project] {
@@ -209,7 +209,7 @@ func GetAllProjects(tasks []Task) []string {
 			}
 		}
 	}
-	
+
 	return projects
 }
 
@@ -249,19 +249,19 @@ func SortTasks(tasks []Task) {
 		// First, completed tasks (DONE/WONTDO) always go to the bottom
 		iCompleted := tasks[i].Status == StatusDONE || tasks[i].Status == StatusWONTDO
 		jCompleted := tasks[j].Status == StatusDONE || tasks[j].Status == StatusWONTDO
-		
+
 		if iCompleted != jCompleted {
 			return !iCompleted // Active tasks come first
 		}
-		
+
 		// Both are active or both are completed, sort by priority
 		iPriority := GetPriorityValue(tasks[i].Priority)
 		jPriority := GetPriorityValue(tasks[j].Priority)
-		
+
 		if iPriority != jPriority {
 			return iPriority < jPriority // Lower value = higher priority
 		}
-		
+
 		// Same priority, sort by update time (newest first)
 		return tasks[i].Updated.After(tasks[j].Updated)
 	})
@@ -304,13 +304,13 @@ func GetProjectColor(project string) string {
 		"\x1b[38;5;81m",  // Sky Blue
 		"\x1b[38;5;169m", // Pink
 	}
-	
+
 	// Simple hash: sum of character codes
 	hash := 0
 	for _, ch := range project {
 		hash += int(ch)
 	}
-	
+
 	// Select color based on hash
 	colorIndex := hash % len(colors)
 	return colors[colorIndex]
