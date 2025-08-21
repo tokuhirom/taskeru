@@ -611,6 +611,21 @@ func (m InteractiveTaskList) View() string {
 			}
 		}
 
+		// Add scheduled date if future
+		if task.IsFutureScheduled() {
+			schedIn := time.Until(*task.ScheduledDate)
+			if schedIn < 24*time.Hour {
+				// Starts tomorrow - green
+				line += fmt.Sprintf(" \x1b[32m(starts tomorrow)\x1b[0m")
+			} else if schedIn < 7*24*time.Hour {
+				// Starts this week - dim green
+				line += fmt.Sprintf(" \x1b[92m(starts %s)\x1b[0m", task.ScheduledDate.Format("Mon"))
+			} else {
+				// Starts later - dim
+				line += fmt.Sprintf(" \x1b[90m(starts %s)\x1b[0m", task.ScheduledDate.Format("01-02"))
+			}
+		}
+		
 		// Add completion date for done/wontdo tasks (dim gray)
 		if task.Status == StatusDONE || task.Status == StatusWONTDO {
 			if task.CompletedAt != nil {

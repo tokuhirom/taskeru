@@ -77,6 +77,21 @@ func ListCommand(projectFilter string) error {
 			fmt.Printf(" %s", strings.Join(projectStrs, " "))
 		}
 
+		// Display scheduled date if future
+		if task.IsFutureScheduled() {
+			schedIn := time.Until(*task.ScheduledDate)
+			if schedIn < 24*time.Hour {
+				// Starts tomorrow - green
+				fmt.Printf(" \x1b[32m(starts tomorrow)\x1b[0m")
+			} else if schedIn < 7*24*time.Hour {
+				// Starts this week - dim green
+				fmt.Printf(" \x1b[92m(starts %s)\x1b[0m", task.ScheduledDate.Format("Mon"))
+			} else {
+				// Starts later - dim
+				fmt.Printf(" \x1b[90m(starts %s)\x1b[0m", task.ScheduledDate.Format("01-02"))
+			}
+		}
+		
 		// Display completion date for done/wontdo tasks (dim gray)
 		if (task.Status == internal.StatusDONE || task.Status == internal.StatusWONTDO) && task.CompletedAt != nil {
 			// Use dim gray color (ANSI 90) for completed date

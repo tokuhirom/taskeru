@@ -155,8 +155,11 @@ func InteractiveCommand() error {
 
 		// Handle new task creation
 		if newTaskTitle != "" {
+			// Extract scheduled date from title
+			cleanTitle, scheduled := internal.ExtractScheduledDateFromTitle(newTaskTitle)
+			
 			// Extract deadline from title
-			cleanTitle, deadline := internal.ExtractDeadlineFromTitle(newTaskTitle)
+			cleanTitle, deadline := internal.ExtractDeadlineFromTitle(cleanTitle)
 			
 			// Extract projects from title
 			cleanTitle, projects := internal.ExtractProjectsFromTitle(cleanTitle)
@@ -164,6 +167,7 @@ func InteractiveCommand() error {
 			newTask := internal.NewTask(cleanTitle)
 			newTask.Projects = projects
 			newTask.DueDate = deadline
+			newTask.ScheduledDate = scheduled
 
 			if err := internal.AddTask(newTask); err != nil {
 				fmt.Printf("Failed to create task: %v\n", err)
@@ -171,6 +175,9 @@ func InteractiveCommand() error {
 				fmt.Printf("Task created: %s", cleanTitle)
 				if len(projects) > 0 {
 					fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
+				}
+				if scheduled != nil {
+					fmt.Printf(" [Scheduled: %s]", scheduled.Format("2006-01-02"))
 				}
 				if deadline != nil {
 					fmt.Printf(" [Due: %s]", deadline.Format("2006-01-02"))

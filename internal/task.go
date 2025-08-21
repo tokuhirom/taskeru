@@ -10,16 +10,17 @@ import (
 )
 
 type Task struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Created     time.Time  `json:"created"`
-	Updated     time.Time  `json:"updated"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	Priority    string     `json:"priority,omitempty"`
-	Status      string     `json:"status"`
-	Note        string     `json:"note,omitempty"`
-	Projects    []string   `json:"projects,omitempty"`
+	ID           string     `json:"id"`
+	Title        string     `json:"title"`
+	Created      time.Time  `json:"created"`
+	Updated      time.Time  `json:"updated"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	DueDate      *time.Time `json:"due_date,omitempty"`
+	ScheduledDate *time.Time `json:"scheduled_date,omitempty"`
+	Priority     string     `json:"priority,omitempty"`
+	Status       string     `json:"status"`
+	Note         string     `json:"note,omitempty"`
+	Projects     []string   `json:"projects,omitempty"`
 }
 
 // Available task statuses
@@ -153,6 +154,18 @@ func (t *Task) IsOldCompleted() bool {
 	return t.CompletedAt.Before(todayAt4AM)
 }
 
+// IsFutureScheduled returns true if the task is scheduled for a future date
+func (t *Task) IsFutureScheduled() bool {
+	if t.ScheduledDate == nil {
+		return false
+	}
+	
+	now := time.Now()
+	// Tasks scheduled for today or earlier are not "future"
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	return t.ScheduledDate.After(today)
+}
+
 func FilterVisibleTasks(tasks []Task, showAll bool) []Task {
 	if showAll {
 		return tasks
@@ -283,6 +296,85 @@ func nextWeekday(from time.Time, weekday time.Weekday) time.Time {
 		days += 7
 	}
 	return from.AddDate(0, 0, days)
+}
+
+// ExtractScheduledDateFromTitle extracts scheduled date (scheduled:date or sched:date) from title
+func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
+	// Pattern for scheduled:date or sched:date format
+	schedRegex := regexp.MustCompile(`\s+(scheduled|sched):(\S+)`)
+	
+	match := schedRegex.FindStringSubmatch(title)
+	if match == nil {
+		return title, nil
+	}
+	
+	dateStr := match[2]
+	var scheduled time.Time
+	
+	// Parse relative dates (reuse same logic as deadline)
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	
+	switch strings.ToLower(dateStr) {
+	case "today":
+		scheduled = today
+	case "tomorrow":
+		scheduled = today.AddDate(0, 0, 1)
+	case "monday", "mon":
+		scheduled = nextWeekday(today, time.Monday)
+	case "tuesday", "tue":
+		scheduled = nextWeekday(today, time.Tuesday)
+	case "wednesday", "wed":
+		scheduled = nextWeekday(today, time.Wednesday)
+	case "thursday", "thu":
+		scheduled = nextWeekday(today, time.Thursday)
+	case "friday", "fri":
+		scheduled = nextWeekday(today, time.Friday)
+	case "saturday", "sat":
+		scheduled = nextWeekday(today, time.Saturday)
+	case "sunday", "sun":
+		scheduled = nextWeekday(today, time.Sunday)
+	default:
+		// Try to parse as date
+		formats := []string{
+			"2006-01-02",
+			"2006/01/02",
+			"01-02",
+			"01/02",
+			"1/2",
+			"1-2",
+		}
+		
+		var err error
+		for _, format := range formats {
+			scheduled, err = time.Parse(format, dateStr)
+			if err == nil {
+				// If year is not specified (format without year), use current year
+				if format == "01-02" || format == "01/02" || format == "1/2" || format == "1-2" {
+					scheduled = time.Date(now.Year(), scheduled.Month(), scheduled.Day(), 0, 0, 0, 0, now.Location())
+					// If the date has already passed this year, assume next year
+					if scheduled.Before(now) {
+						scheduled = scheduled.AddDate(1, 0, 0)
+					}
+				} else {
+					// Set time to start of day for scheduled date
+					scheduled = time.Date(scheduled.Year(), scheduled.Month(), scheduled.Day(), 0, 0, 0, 0, now.Location())
+				}
+				break
+			}
+		}
+		
+		if err != nil {
+			// Could not parse date, return original title
+			return title, nil
+		}
+	}
+	
+	// Remove the scheduled:date part from title
+	cleanTitle := schedRegex.ReplaceAllString(title, "")
+	cleanTitle = strings.TrimSpace(cleanTitle)
+	
+	return cleanTitle, &scheduled
 }
 
 // GetAllProjects returns all unique projects from a list of tasks
