@@ -8,10 +8,15 @@ import (
 	"taskeru/internal"
 )
 
-func ListCommand() error {
+func ListCommand(projectFilter string) error {
 	tasks, err := internal.LoadTasks()
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+
+	// Filter by project if specified
+	if projectFilter != "" {
+		tasks = internal.FilterTasksByProject(tasks, projectFilter)
 	}
 
 	// Sort tasks by priority and update time
@@ -21,7 +26,11 @@ func ListCommand() error {
 	visibleTasks := internal.FilterVisibleTasks(tasks, false)
 
 	if len(visibleTasks) == 0 {
-		fmt.Println("No tasks found.")
+		if projectFilter != "" {
+			fmt.Printf("No tasks found for project: %s\n", projectFilter)
+		} else {
+			fmt.Println("No tasks found.")
+		}
 		hiddenCount := len(tasks) - len(visibleTasks)
 		if hiddenCount > 0 {
 			fmt.Printf("(%d old completed tasks hidden)\n", hiddenCount)
@@ -29,7 +38,11 @@ func ListCommand() error {
 		return nil
 	}
 
-	fmt.Println("Tasks:")
+	if projectFilter != "" {
+		fmt.Printf("Tasks for project: %s\n", projectFilter)
+	} else {
+		fmt.Println("Tasks:")
+	}
 	fmt.Println("------")
 
 	for i, task := range visibleTasks {

@@ -125,7 +125,6 @@ add_timestamp = false  # true で有効化
 ```
 
 ### 環境変数
-- `TASKERU_FILE`: データファイルのパス（デフォルト: `~/todo.json`）
 - `EDITOR`: 使用するエディタ（デフォルト: `vim`）
 
 ### コマンドラインオプション
