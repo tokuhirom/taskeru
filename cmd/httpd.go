@@ -472,6 +472,31 @@ body {
 	margin-bottom: 0.25rem;
 }
 
+.card-dates {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	margin-top: 0.5rem;
+}
+
+.date-badge {
+	display: inline-block;
+	padding: 0.2rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 500;
+}
+
+.date-badge.scheduled {
+	background: #e3f2fd;
+	color: #1976d2;
+}
+
+.date-badge.deadline {
+	background: #fff3e0;
+	color: #f57c00;
+}
+
 .card-projects {
 	display: flex;
 	flex-wrap: wrap;

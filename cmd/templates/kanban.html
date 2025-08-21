@@ -10,6 +10,16 @@
                 <span class="card-priority">{{$task.Priority}}</span>
                 {{end}}
                 <div class="card-title">{{$task.Title}}</div>
+                {{if or $task.ScheduledDate $task.DueDate}}
+                <div class="card-dates">
+                    {{if $task.ScheduledDate}}
+                    <span class="date-badge scheduled">📅 {{formatDate $task.ScheduledDate}}</span>
+                    {{end}}
+                    {{if $task.DueDate}}
+                    <span class="date-badge deadline">⏰ {{formatDate $task.DueDate}}</span>
+                    {{end}}
+                </div>
+                {{end}}
                 {{if $task.Projects}}
                 <div class="card-projects">
                     {{range $project := $task.Projects}}
