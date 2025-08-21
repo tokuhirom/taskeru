@@ -793,7 +793,24 @@ func (m InteractiveTaskList) View() string {
 
 	var s strings.Builder
 	if m.projectFilter != "" {
-		s.WriteString(fmt.Sprintf("Tasks [Project: %s]:\n\n", m.projectFilter))
+		// Show project filter with color and count
+		projectColor := GetProjectColor(m.projectFilter)
+		totalCount := len(m.tasks)
+		// Calculate hidden count only for this project
+		allProjectTasks := FilterTasksByProject(m.allTasks, m.projectFilter)
+		hiddenCount := len(allProjectTasks) - totalCount
+		s.WriteString(fmt.Sprintf("Tasks for project: %s+%s\x1b[0m", projectColor, m.projectFilter))
+		if totalCount > 0 || hiddenCount > 0 {
+			s.WriteString(fmt.Sprintf(" (%d task", totalCount))
+			if totalCount != 1 {
+				s.WriteString("s")
+			}
+			if hiddenCount > 0 {
+				s.WriteString(fmt.Sprintf(", %d hidden", hiddenCount))
+			}
+			s.WriteString(")")
+		}
+		s.WriteString("\n\n")
 	} else {
 		s.WriteString("Tasks:\n\n")
 	}

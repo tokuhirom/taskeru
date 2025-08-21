@@ -39,7 +39,17 @@ func ListCommand(projectFilter string) error {
 	}
 
 	if projectFilter != "" {
-		fmt.Printf("Tasks for project: %s\n", projectFilter)
+		// Show project with color and count
+		projectColor := internal.GetProjectColor(projectFilter)
+		fmt.Printf("Tasks for project: %s+%s\x1b[0m (%d task", projectColor, projectFilter, len(visibleTasks))
+		if len(visibleTasks) != 1 {
+			fmt.Print("s")
+		}
+		hiddenCount := len(tasks) - len(visibleTasks)
+		if hiddenCount > 0 {
+			fmt.Printf(", %d hidden", hiddenCount)
+		}
+		fmt.Println(")")
 	} else {
 		fmt.Println("Tasks:")
 	}
@@ -126,9 +136,12 @@ func ListCommand(projectFilter string) error {
 		}
 	}
 
-	hiddenCount := len(tasks) - len(visibleTasks)
-	if hiddenCount > 0 {
-		fmt.Printf("\n(%d old completed tasks hidden)\n", hiddenCount)
+	// Only show hidden count at the bottom if no project filter (otherwise it's in the title)
+	if projectFilter == "" {
+		hiddenCount := len(tasks) - len(visibleTasks)
+		if hiddenCount > 0 {
+			fmt.Printf("\n(%d old completed tasks hidden)\n", hiddenCount)
+		}
 	}
 
 	return nil
