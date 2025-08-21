@@ -175,7 +175,14 @@ func editTaskNoteKanban(task *internal.Task) error {
 		editor = "vim"
 	}
 
-	cmd := exec.Command(editor, tempFile.Name())
+	// If using vim or nvim, add + to start at the last line
+	var cmd *exec.Cmd
+	if editor == "vim" || editor == "nvim" || 
+		strings.HasSuffix(editor, "/vim") || strings.HasSuffix(editor, "/nvim") {
+		cmd = exec.Command(editor, "+", tempFile.Name())
+	} else {
+		cmd = exec.Command(editor, tempFile.Name())
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
