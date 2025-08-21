@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -22,15 +23,16 @@ type InteractiveTaskList struct {
 	inputCursor     int // Cursor position in input buffer
 	newTaskTitle    string
 	shouldReload    bool
-	showProjectView bool
 	searchMode      bool
 	searchQuery     string
 	searchCursor    int
 	matchingTasks   map[string]bool // Track which tasks match the search
-	dateEditMode    string          // "deadline" or "scheduled"
-	dateEditBuffer  string
-	dateEditCursor  int
-	projectFilter   string // Filter tasks by project
+	dateEditMode     string          // "deadline" or "scheduled"
+	dateEditBuffer   string
+	dateEditCursor   int
+	projectFilter    string // Filter tasks by project
+	projectSelectMode bool  // Mode for selecting project filter
+	projectCursor    int    // Cursor position in project list
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
@@ -65,15 +67,16 @@ func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *Inter
 		inputCursor:     0,
 		newTaskTitle:    "",
 		shouldReload:    false,
-		showProjectView: false,
 		searchMode:      false,
 		searchQuery:     "",
 		searchCursor:    0,
 		matchingTasks:   make(map[string]bool),
-		dateEditMode:    "",
-		dateEditBuffer:  "",
-		dateEditCursor:  0,
-		projectFilter:   projectFilter,
+		dateEditMode:      "",
+		dateEditBuffer:    "",
+		dateEditCursor:    0,
+		projectFilter:     projectFilter,
+		projectSelectMode: false,
+		projectCursor:     0,
 	}
 }
 
@@ -95,9 +98,59 @@ func (m *InteractiveTaskList) applyFilters() {
 	m.tasks = FilterVisibleTasks(filteredByProject, m.showAll)
 }
 
+// getAvailableProjects returns sorted list of unique projects from all tasks
+func (m *InteractiveTaskList) getAvailableProjects() []string {
+	projectMap := make(map[string]bool)
+	for _, task := range m.allTasks {
+		for _, project := range task.Projects {
+			projectMap[project] = true
+		}
+	}
+	
+	var projects []string
+	for project := range projectMap {
+		projects = append(projects, project)
+	}
+	
+	// Sort projects alphabetically
+	sort.Strings(projects)
+	return projects
+}
+
 func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle project select mode
+		if m.projectSelectMode {
+			projects := m.getAvailableProjects()
+			
+			switch msg.String() {
+			case "esc", "q":
+				m.projectSelectMode = false
+				m.projectCursor = 0
+			case "enter":
+				if m.projectCursor == 0 {
+					// "All tasks" selected
+					m.projectFilter = ""
+				} else if m.projectCursor <= len(projects) {
+					m.projectFilter = projects[m.projectCursor-1]
+				}
+				m.projectSelectMode = false
+				m.projectCursor = 0
+				// Re-apply filters
+				m.applyFilters()
+			case "up", "k":
+				if m.projectCursor > 0 {
+					m.projectCursor--
+				}
+			case "down", "j":
+				if m.projectCursor < len(projects) {
+					m.projectCursor++
+				}
+			}
+			return m, nil
+		}
+		
 		// Handle date edit mode
 		if m.dateEditMode != "" {
 			dateRunes := []rune(m.dateEditBuffer)
@@ -590,10 +643,20 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "p":
-			// Show project view
+			// Enter project select mode
 			if !m.confirmDelete && !m.inputMode {
-				m.showProjectView = true
-				return m, tea.Quit
+				m.projectSelectMode = true
+				m.projectCursor = 0
+				// Find current project in list
+				if m.projectFilter != "" {
+					projects := m.getAvailableProjects()
+					for i, p := range projects {
+						if p == m.projectFilter {
+							m.projectCursor = i + 1 // +1 because 0 is "All tasks"
+							break
+						}
+					}
+				}
 			}
 
 		case "s":
@@ -878,6 +941,22 @@ func (m InteractiveTaskList) View() string {
 
 		s.WriteString("\n\n📝 New task title: " + displayStr)
 		s.WriteString("\n\nEnter: create • Esc: cancel • Tab: complete project • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace • Ctrl+K: kill • Ctrl+D: delete")
+	} else if m.projectSelectMode {
+		// Show project selection UI
+		s.WriteString("\n\n📁 Select project filter:\n\n")
+		
+		projects := m.getAvailableProjects()
+		allProjects := append([]string{"[All tasks]"}, projects...)
+		
+		for i, project := range allProjects {
+			cursor := "  "
+			if i == m.projectCursor {
+				cursor = "> "
+			}
+			s.WriteString(fmt.Sprintf("%s%s\n", cursor, project))
+		}
+		
+		s.WriteString("\n↑/k: up • ↓/j: down • Enter: select • Esc/q: cancel")
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
@@ -1020,29 +1099,25 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 	}
 }
 
-func (m InteractiveTaskList) ShouldShowProjectView() bool {
-	return m.showProjectView
-}
-
-func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, bool, error) {
+func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, error) {
 	return ShowInteractiveTaskListWithFilter(tasks, "")
 }
 
-func ShowInteractiveTaskListWithFilter(tasks []Task, projectFilter string) ([]Task, bool, *Task, []string, string, bool, bool, error) {
+func ShowInteractiveTaskListWithFilter(tasks []Task, projectFilter string) ([]Task, bool, *Task, []string, string, bool, error) {
 	model := NewInteractiveTaskListWithFilter(tasks, projectFilter)
 	p := tea.NewProgram(model)
 
 	result, err := p.Run()
 	if err != nil {
-		return nil, false, nil, nil, "", false, false, err
+		return nil, false, nil, nil, "", false, err
 	}
 
 	finalModel := result.(InteractiveTaskList)
 
 	// Check if user wants to edit a task
 	if finalModel.ShouldEdit() {
-		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), finalModel.ShouldShowProjectView(), nil
+		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
 	}
 
-	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), finalModel.ShouldShowProjectView(), nil
+	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
 }

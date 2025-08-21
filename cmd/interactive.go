@@ -21,108 +21,9 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
 
-		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, showProjectView, err := internal.ShowInteractiveTaskListWithFilter(tasks, projectFilter)
+		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, err := internal.ShowInteractiveTaskListWithFilter(tasks, projectFilter)
 		if err != nil {
 			return fmt.Errorf("failed to show interactive list: %w", err)
-		}
-
-		// Handle project view
-		if showProjectView {
-			projectTasks, projectModified, projectEditTask, projectDeletedIDs, projectNewTask, projectReload, err := internal.ShowProjectView(tasks)
-			if err != nil {
-				fmt.Printf("Failed to show project view: %v\n", err)
-			}
-
-			// Handle reload request from project view
-			if projectReload {
-				if projectModified {
-					// Save before reloading
-					if err := internal.SaveTasks(projectTasks); err != nil {
-						fmt.Printf("Failed to save tasks before reload: %v\n", err)
-					}
-				}
-				fmt.Println("Reloading tasks...")
-				continue
-			}
-
-			// Handle new task creation
-			if projectNewTask != "" {
-				cleanTitle, projects := internal.ExtractProjectsFromTitle(projectNewTask)
-				newTask := internal.NewTask(cleanTitle)
-				newTask.Projects = projects
-
-				if err := internal.AddTask(newTask); err != nil {
-					fmt.Printf("Failed to create task: %v\n", err)
-				} else {
-					fmt.Printf("Task created: %s", cleanTitle)
-					if len(projects) > 0 {
-						fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
-					}
-					fmt.Println()
-				}
-				continue
-			}
-
-			// Handle task deletion
-			if len(projectDeletedIDs) > 0 {
-				// Collect deleted tasks for trash
-				var deletedTasks []internal.Task
-				for _, id := range projectDeletedIDs {
-					for _, task := range tasks {
-						if task.ID == id {
-							deletedTasks = append(deletedTasks, task)
-							break
-						}
-					}
-				}
-
-				// Save to trash
-				if err := internal.SaveDeletedTasksToTrash(deletedTasks); err != nil {
-					fmt.Printf("Warning: failed to save to trash: %v\n", err)
-				}
-
-				projectModified = true
-			}
-
-			// Handle task editing
-			if projectEditTask != nil {
-				originalUpdated := projectEditTask.Updated
-
-				if err := editTaskNoteInteractive(projectEditTask); err != nil {
-					fmt.Printf("Editor error: %v\n", err)
-					continue
-				}
-
-				if err := internal.UpdateTaskWithConflictCheck(projectEditTask.ID, originalUpdated, func(t *internal.Task) {
-					t.Title = projectEditTask.Title
-					t.Projects = projectEditTask.Projects
-					t.Note = projectEditTask.Note
-				}); err != nil {
-					if strings.Contains(err.Error(), "modified by another process") {
-						fmt.Println("Conflict: task was modified by another process, please try again")
-					} else {
-						fmt.Printf("Failed to save task: %v\n", err)
-					}
-					continue
-				}
-
-				fmt.Printf("Task updated: %s\n", projectEditTask.Title)
-				continue
-			}
-
-			if projectModified {
-				// Save the modified tasks
-				if err := internal.SaveTasks(projectTasks); err != nil {
-					fmt.Printf("Failed to save tasks: %v\n", err)
-				} else {
-					if len(projectDeletedIDs) > 0 {
-						fmt.Printf("%d task(s) deleted and moved to trash.\n", len(projectDeletedIDs))
-					} else {
-						fmt.Println("Tasks updated from project view.")
-					}
-				}
-			}
-			continue // Go back to the list
 		}
 
 		// Handle reload
@@ -135,7 +36,9 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 					for j := range tasks {
 						if updatedTasks[i].ID == tasks[j].ID &&
 							(updatedTasks[i].Status != tasks[j].Status ||
-								updatedTasks[i].Priority != tasks[j].Priority) {
+								updatedTasks[i].Priority != tasks[j].Priority ||
+								updatedTasks[i].DueDate != tasks[j].DueDate ||
+								updatedTasks[i].ScheduledDate != tasks[j].ScheduledDate) {
 							updatedTasks[i].Updated = now
 							break
 						}
@@ -143,55 +46,14 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 				}
 
 				if err := internal.SaveTasks(updatedTasks); err != nil {
-					fmt.Printf("Failed to save tasks before reload: %v\n", err)
-				} else {
-					fmt.Println("Saved changes before reloading...")
+					return fmt.Errorf("failed to save tasks: %w", err)
 				}
 			}
 			fmt.Println("Reloading tasks...")
 			continue
 		}
 
-		// If user quit (pressed q/esc), exit
-		if taskToEdit == nil && !modified && len(deletedTaskIDs) == 0 && newTaskTitle == "" {
-			break
-		}
-
-		// Handle new task creation
-		if newTaskTitle != "" {
-			// Extract scheduled date from title
-			cleanTitle, scheduled := internal.ExtractScheduledDateFromTitle(newTaskTitle)
-
-			// Extract deadline from title
-			cleanTitle, deadline := internal.ExtractDeadlineFromTitle(cleanTitle)
-
-			// Extract projects from title
-			cleanTitle, projects := internal.ExtractProjectsFromTitle(cleanTitle)
-
-			newTask := internal.NewTask(cleanTitle)
-			newTask.Projects = projects
-			newTask.DueDate = deadline
-			newTask.ScheduledDate = scheduled
-
-			if err := internal.AddTask(newTask); err != nil {
-				fmt.Printf("Failed to create task: %v\n", err)
-			} else {
-				fmt.Printf("Task created: %s", cleanTitle)
-				if len(projects) > 0 {
-					fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
-				}
-				if scheduled != nil {
-					fmt.Printf(" [Scheduled: %s]", scheduled.Format("2006-01-02"))
-				}
-				if deadline != nil {
-					fmt.Printf(" [Due: %s]", deadline.Format("2006-01-02"))
-				}
-				fmt.Println()
-			}
-			continue // Go back to the list
-		}
-
-		// Handle deleted tasks
+		// Handle task deletion
 		if len(deletedTaskIDs) > 0 {
 			// Collect deleted tasks for trash
 			var deletedTasks []internal.Task
@@ -209,11 +71,70 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 				fmt.Printf("Warning: failed to save to trash: %v\n", err)
 			}
 
-			// Mark as modified to save the updated list
+			// Mark as modified to trigger save
 			modified = true
 		}
 
-		// If tasks were modified (status toggled, priority changed, or deleted), save them
+		// Handle new task creation
+		if newTaskTitle != "" {
+			// Extract projects and scheduled/due dates from title
+			cleanTitle, projects := internal.ExtractProjectsFromTitle(newTaskTitle)
+			cleanTitle, scheduledDate := internal.ExtractScheduledDateFromTitle(cleanTitle)
+			cleanTitle, dueDate := internal.ExtractDeadlineFromTitle(cleanTitle)
+
+			newTask := internal.NewTask(cleanTitle)
+			newTask.Projects = projects
+			newTask.ScheduledDate = scheduledDate
+			newTask.DueDate = dueDate
+
+			if err := internal.AddTask(newTask); err != nil {
+				return fmt.Errorf("failed to create task: %w", err)
+			}
+
+			fmt.Printf("Task created: %s", cleanTitle)
+			if len(projects) > 0 {
+				fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
+			}
+			if scheduledDate != nil {
+				fmt.Printf(" [Scheduled: %s]", scheduledDate.Format("2006-01-02"))
+			}
+			if dueDate != nil {
+				fmt.Printf(" [Due: %s]", dueDate.Format("2006-01-02"))
+			}
+			fmt.Println()
+			continue // Go back to the list after creating
+		}
+
+		// Handle edit task
+		if taskToEdit != nil {
+			// Remember the original updated time for conflict detection
+			originalUpdated := taskToEdit.Updated
+
+			// Open editor
+			if err := editTaskNoteInteractive(taskToEdit); err != nil {
+				fmt.Printf("Editor error: %v\n", err)
+				continue
+			}
+
+			// Update the task with conflict check
+			if err := internal.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
+				t.Title = taskToEdit.Title
+				t.Projects = taskToEdit.Projects
+				t.Note = taskToEdit.Note
+			}); err != nil {
+				if strings.Contains(err.Error(), "modified by another process") {
+					fmt.Println("Conflict: task was modified by another process, please try again")
+				} else {
+					fmt.Printf("Failed to save task: %v\n", err)
+				}
+				continue
+			}
+
+			fmt.Printf("Task updated: %s\n", taskToEdit.Title)
+			continue // Go back to the list after editing
+		}
+
+		// Save modifications and exit
 		if modified {
 			// Update the Updated timestamp for modified tasks
 			now := time.Now()
@@ -221,7 +142,9 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 				for j := range tasks {
 					if updatedTasks[i].ID == tasks[j].ID &&
 						(updatedTasks[i].Status != tasks[j].Status ||
-							updatedTasks[i].Priority != tasks[j].Priority) {
+							updatedTasks[i].Priority != tasks[j].Priority ||
+							updatedTasks[i].DueDate != tasks[j].DueDate ||
+							updatedTasks[i].ScheduledDate != tasks[j].ScheduledDate) {
 						updatedTasks[i].Updated = now
 						break
 					}
@@ -239,154 +162,104 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 			}
 		}
 
-		// If user pressed 'e' on a task, open editor
-		if taskToEdit != nil {
-			// Remember the original updated timestamp for conflict check
-			originalUpdated := taskToEdit.Updated
-
-			if err := editTaskNoteInteractive(taskToEdit); err != nil {
-				// If editor failed, just continue (back to list)
-				fmt.Printf("Editor error: %v\n", err)
-				continue
-			}
-
-			if err := internal.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
-				t.Title = taskToEdit.Title
-				t.Projects = taskToEdit.Projects
-				t.Note = taskToEdit.Note
-			}); err != nil {
-				if strings.Contains(err.Error(), "modified by another process") {
-					fmt.Println("Conflict: task was modified by another process, please try again")
-				} else {
-					fmt.Printf("Failed to save task: %v\n", err)
-				}
-				continue
-			}
-
-			fmt.Printf("Task updated: %s\n", taskToEdit.Title)
-			// Continue to show the list again
-			continue
-		}
+		// Normal exit
+		break
 	}
 
 	return nil
 }
 
 func editTaskNoteInteractive(task *internal.Task) error {
-	tempFile, err := os.CreateTemp("", "taskeru-*.md")
+	// Create temp file with Markdown extension
+	tmpfile, err := os.CreateTemp("", "task-*.md")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer os.Remove(tmpfile.Name())
 
-	// Load configuration
-	config, _ := internal.LoadConfig()
-
-	// Include projects in the title line
-	titleWithProjects := task.Title
-	for _, project := range task.Projects {
-		titleWithProjects += " +" + project
+	// Pre-fill with current title and note
+	content := fmt.Sprintf("# %s\n\n%s", task.Title, task.Note)
+	if _, err := tmpfile.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write to temp file: %w", err)
 	}
+	tmpfile.Close()
 
-	noteContent := task.Note
-
-	// Add timestamp if enabled in config
-	if config.Editor.AddTimestamp {
-		now := time.Now()
-		// Format: YYYY-MM-DD(Day) HH:MM
-		weekday := now.Format("Mon")
-		timestamp := fmt.Sprintf("\n\n## %s(%s) %s\n", now.Format("2006-01-02"), weekday, now.Format("15:04"))
-
-		// Append timestamp to existing note or create new note with timestamp
-		if noteContent != "" {
-			noteContent += timestamp
-		} else {
-			noteContent = timestamp
-		}
-	}
-
-	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, noteContent)
-	if _, err := tempFile.WriteString(content); err != nil {
-		tempFile.Close()
-		return err
-	}
-	tempFile.Close()
-
+	// Open editor
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"
 	}
 
-	// If using vim or nvim, add + to start at the last line
-	var cmd *exec.Cmd
-	if editor == "vim" || editor == "nvim" ||
-		strings.HasSuffix(editor, "/vim") || strings.HasSuffix(editor, "/nvim") {
-		cmd = exec.Command(editor, "+", tempFile.Name())
-	} else {
-		cmd = exec.Command(editor, tempFile.Name())
-	}
+	cmd := exec.Command(editor, tmpfile.Name())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil
+		return fmt.Errorf("editor failed: %w", err)
 	}
 
-	editedContent, err := os.ReadFile(tempFile.Name())
+	// Read back the edited content
+	editedContent, err := os.ReadFile(tmpfile.Name())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read edited file: %w", err)
 	}
 
-	parsedTitle, parsedProjects, parsedNote := parseEditedContentInteractive(string(editedContent))
-	task.Title = parsedTitle
-	task.Projects = parsedProjects
-	task.Note = parsedNote
-
-	return nil
-}
-
-func parseEditedContentInteractive(content string) (title string, projects []string, note string) {
-	lines := strings.Split(content, "\n")
-
-	foundTitle := false
-	var noteLines []string
+	// Parse the content
+	lines := strings.Split(string(editedContent), "\n")
+	newTitle := task.Title // Default to original title
+	noteLines := []string{}
+	inNote := false
 
 	for _, line := range lines {
-		if !foundTitle && strings.HasPrefix(line, "# ") {
-			titleLine := strings.TrimPrefix(line, "# ")
-			// Extract projects from the title line
-			title, projects = internal.ExtractProjectsFromTitle(titleLine)
-			foundTitle = true
-			continue
-		}
-
-		if foundTitle {
+		if !inNote && strings.HasPrefix(line, "# ") {
+			// Extract title from first heading
+			newTitle = strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			inNote = true
+		} else if inNote {
 			noteLines = append(noteLines, line)
 		}
 	}
 
-	// Remove leading empty lines
-	for len(noteLines) > 0 && noteLines[0] == "" {
+	// Trim leading empty lines from note
+	for len(noteLines) > 0 && strings.TrimSpace(noteLines[0]) == "" {
 		noteLines = noteLines[1:]
 	}
 
-	// Remove trailing empty lines
-	for len(noteLines) > 0 && noteLines[len(noteLines)-1] == "" {
+	// Trim trailing empty lines from note
+	for len(noteLines) > 0 && strings.TrimSpace(noteLines[len(noteLines)-1]) == "" {
 		noteLines = noteLines[:len(noteLines)-1]
 	}
 
-	note = strings.Join(noteLines, "\n")
+	// Extract projects from the new title
+	cleanTitle, projects := internal.ExtractProjectsFromTitle(newTitle)
 
-	// If no title found, use first line as title
-	if title == "" && len(lines) > 0 {
-		title = lines[0]
-		if len(lines) > 1 {
-			note = strings.Join(lines[1:], "\n")
-		} else {
-			note = ""
-		}
+	// Update task
+	task.Title = cleanTitle
+	task.Projects = projects
+	task.Note = strings.Join(noteLines, "\n")
+
+	return nil
+}
+
+func editTaskInteractive(task *internal.Task) error {
+	// Remember the original updated time for conflict detection
+	originalUpdated := task.Updated
+
+	// Open editor for the task
+	if err := editTaskNoteInteractive(task); err != nil {
+		return fmt.Errorf("editor error: %w", err)
 	}
 
-	return title, projects, note
+	// Update the task with conflict check
+	if err := internal.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
+		t.Title = task.Title
+		t.Projects = task.Projects
+		t.Note = task.Note
+	}); err != nil {
+		return err
+	}
+
+	fmt.Printf("Task updated: %s\n", task.Title)
+	return nil
 }

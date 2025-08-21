@@ -105,7 +105,6 @@ Interactive Mode Keys:
   c             Create new task
   e             Edit selected task
   d             Delete selected task
-  p             Show project view
   r             Reload tasks
   q             Quit
 
