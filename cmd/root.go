@@ -32,8 +32,8 @@ func Execute() {
 	args := flag.Args()
 
 	if len(args) == 0 {
-		// No command, run interactive mode
-		if err := InteractiveCommand(); err != nil {
+		// No command, run interactive mode (with project filter if specified)
+		if err := InteractiveCommandWithFilter(projectFilter); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -84,7 +84,7 @@ Usage:
 
 Options:
   -t <file>      Path to task file (default: ~/todo.json)
-  -p <project>   Filter tasks by project (for ls command)
+  -p <project>   Filter tasks by project (for ls and interactive mode)
 
 Commands:
   add <title>    Add a new task (supports +project, due:date, scheduled:date)

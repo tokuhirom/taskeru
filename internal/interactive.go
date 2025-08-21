@@ -30,12 +30,28 @@ type InteractiveTaskList struct {
 	dateEditMode    string          // "deadline" or "scheduled"
 	dateEditBuffer  string
 	dateEditCursor  int
+	projectFilter   string // Filter tasks by project
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
+	return NewInteractiveTaskListWithFilter(tasks, "")
+}
+
+func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *InteractiveTaskList {
 	// Sort tasks before displaying
 	SortTasks(tasks)
-	filteredTasks := FilterVisibleTasks(tasks, false)
+
+	// Apply project filter if specified
+	var filteredByProject []Task
+	if projectFilter != "" {
+		filteredByProject = FilterTasksByProject(tasks, projectFilter)
+	} else {
+		filteredByProject = tasks
+	}
+
+	// Then apply visibility filter
+	filteredTasks := FilterVisibleTasks(filteredByProject, false)
+
 	return &InteractiveTaskList{
 		allTasks:        tasks,
 		tasks:           filteredTasks,
@@ -57,11 +73,26 @@ func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
 		dateEditMode:    "",
 		dateEditBuffer:  "",
 		dateEditCursor:  0,
+		projectFilter:   projectFilter,
 	}
 }
 
 func (m InteractiveTaskList) Init() tea.Cmd {
 	return nil
+}
+
+// applyFilters applies project filter and visibility filter to tasks
+func (m *InteractiveTaskList) applyFilters() {
+	// Apply project filter first
+	var filteredByProject []Task
+	if m.projectFilter != "" {
+		filteredByProject = FilterTasksByProject(m.allTasks, m.projectFilter)
+	} else {
+		filteredByProject = m.allTasks
+	}
+
+	// Then apply visibility filter
+	m.tasks = FilterVisibleTasks(filteredByProject, m.showAll)
 }
 
 func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -101,7 +132,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							m.allTasks[i].Updated = time.Now()
 
 							// Update filtered view
-							m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+							m.applyFilters()
 							m.modified = true
 							break
 						}
@@ -386,7 +417,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 						// Re-sort and update filtered view
 						SortTasks(m.allTasks)
-						m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+						m.applyFilters()
 
 						// Find the task's new position and move cursor there
 						foundTask := false
@@ -422,7 +453,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Re-sort and filter
 			SortTasks(m.allTasks)
-			m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+			m.applyFilters()
 
 			// Try to maintain cursor position on the same task
 			if oldCursorTaskID != "" {
@@ -496,7 +527,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.allTasks = newAllTasks
 
 				// Update filtered view
-				m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+				m.applyFilters()
 
 				// Adjust cursor if necessary
 				if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
@@ -597,7 +628,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// Re-sort and update filtered view
 					SortTasks(m.allTasks)
-					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+					m.applyFilters()
 
 					// Find the task's new position and move cursor there
 					foundTask := false
@@ -638,7 +669,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// Re-sort and update filtered view
 					SortTasks(m.allTasks)
-					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+					m.applyFilters()
 
 					// Find the task's new position and move cursor there
 					for i, task := range m.tasks {
@@ -669,7 +700,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// Re-sort and update filtered view
 					SortTasks(m.allTasks)
-					m.tasks = FilterVisibleTasks(m.allTasks, m.showAll)
+					m.applyFilters()
 
 					// Find the task's new position and move cursor there
 					for i, task := range m.tasks {
@@ -698,7 +729,11 @@ func (m InteractiveTaskList) View() string {
 	}
 
 	var s strings.Builder
-	s.WriteString("Tasks:\n\n")
+	if m.projectFilter != "" {
+		s.WriteString(fmt.Sprintf("Tasks [Project: %s]:\n\n", m.projectFilter))
+	} else {
+		s.WriteString("Tasks:\n\n")
+	}
 
 	for i, task := range m.tasks {
 		cursor := "  "
@@ -990,7 +1025,11 @@ func (m InteractiveTaskList) ShouldShowProjectView() bool {
 }
 
 func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, bool, error) {
-	model := NewInteractiveTaskList(tasks)
+	return ShowInteractiveTaskListWithFilter(tasks, "")
+}
+
+func ShowInteractiveTaskListWithFilter(tasks []Task, projectFilter string) ([]Task, bool, *Task, []string, string, bool, bool, error) {
+	model := NewInteractiveTaskListWithFilter(tasks, projectFilter)
 	p := tea.NewProgram(model)
 
 	result, err := p.Run()

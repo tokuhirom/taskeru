@@ -11,13 +11,17 @@ import (
 )
 
 func InteractiveCommand() error {
+	return InteractiveCommandWithFilter("")
+}
+
+func InteractiveCommandWithFilter(projectFilter string) error {
 	for {
 		tasks, err := internal.LoadTasks()
 		if err != nil {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
 
-		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, showProjectView, err := internal.ShowInteractiveTaskList(tasks)
+		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, showProjectView, err := internal.ShowInteractiveTaskListWithFilter(tasks, projectFilter)
 		if err != nil {
 			return fmt.Errorf("failed to show interactive list: %w", err)
 		}
