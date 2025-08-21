@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	
+
 	"taskeru/internal"
 )
 
@@ -12,12 +12,12 @@ func Execute() {
 	// Parse global flags first
 	var taskFile string
 	flag.StringVar(&taskFile, "t", "", "Path to task file (overrides TASKERU_FILE)")
-	
+
 	// Custom usage to handle our command structure
 	flag.Usage = func() {
 		showHelp()
 	}
-	
+
 	// Parse flags only if there are arguments
 	if len(os.Args) > 1 {
 		// Check if first arg is a flag or command
@@ -30,16 +30,16 @@ func Execute() {
 			}
 		}
 	}
-	
+
 	// Set task file path if specified
 	if taskFile != "" {
 		internal.SetTaskFilePath(taskFile)
 	}
-	
+
 	// Get command after flag parsing
 	var command string
 	nonFlagArgs := flag.Args()
-	
+
 	if len(os.Args) == 1 || (len(nonFlagArgs) == 0 && taskFile != "") {
 		// No command, run interactive mode
 		if err := InteractiveCommand(); err != nil {
@@ -48,7 +48,7 @@ func Execute() {
 		}
 		return
 	}
-	
+
 	// Determine command
 	if os.Args[1][0] != '-' {
 		command = os.Args[1]
@@ -68,9 +68,9 @@ func Execute() {
 			return
 		}
 	}
-	
+
 	var err error
-	
+
 	switch command {
 	case "add", "a":
 		err = AddCommand(nonFlagArgs)
@@ -95,7 +95,7 @@ func Execute() {
 		showHelp()
 		os.Exit(1)
 	}
-	
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)

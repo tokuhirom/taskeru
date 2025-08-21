@@ -199,7 +199,7 @@ func styleHandler(w http.ResponseWriter, r *http.Request) {
 func groupTasksByStatus(tasks []internal.Task) map[string][]internal.Task {
 	result := make(map[string][]internal.Task)
 	statuses := []string{"TODO", "DOING", "WAITING", "DONE", "WONTDO"}
-	
+
 	for _, status := range statuses {
 		result[status] = []internal.Task{}
 	}
@@ -227,7 +227,7 @@ func groupTasksByDate(tasks []internal.Task, targetMonth time.Time) map[string][
 			dateKey := task.Updated.Format("2006-01-02")
 			result[dateKey] = append(result[dateKey], task)
 		}
-		
+
 		// Also include completed tasks in the target month
 		if task.CompletedAt != nil && task.CompletedAt.After(startOfMonth) && task.CompletedAt.Before(endOfMonth) {
 			dateKey := task.CompletedAt.Format("2006-01-02")
@@ -264,11 +264,11 @@ type YearMonth struct {
 
 func getAvailableMonths(tasks []internal.Task) []YearMonth {
 	monthMap := make(map[string]bool)
-	
+
 	for _, task := range tasks {
 		monthKey := fmt.Sprintf("%d-%02d", task.Updated.Year(), task.Updated.Month())
 		monthMap[monthKey] = true
-		
+
 		if task.CompletedAt != nil {
 			monthKey = fmt.Sprintf("%d-%02d", task.CompletedAt.Year(), task.CompletedAt.Month())
 			monthMap[monthKey] = true

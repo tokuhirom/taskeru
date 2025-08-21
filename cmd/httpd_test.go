@@ -34,10 +34,10 @@ func TestGroupTasksByStatus(t *testing.T) {
 func TestGroupTasksByDate(t *testing.T) {
 	now := time.Now()
 	targetMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
-	
+
 	lastMonth := now.AddDate(0, -1, 0)
 	thisMonth := now
-	
+
 	tasks := []internal.Task{
 		{ID: "1", Title: "Last month task", Updated: lastMonth},
 		{ID: "2", Title: "This month task", Updated: thisMonth},
@@ -45,13 +45,13 @@ func TestGroupTasksByDate(t *testing.T) {
 	}
 
 	grouped := groupTasksByDate(tasks, targetMonth)
-	
+
 	// Should have tasks from this month
 	todayKey := thisMonth.Format("2006-01-02")
 	if len(grouped[todayKey]) < 1 {
 		t.Errorf("Expected at least 1 task for today, got %d", len(grouped[todayKey]))
 	}
-	
+
 	// Should not have last month's task (unless it was completed this month)
 	lastMonthKey := lastMonth.Format("2006-01-02")
 	if _, exists := grouped[lastMonthKey]; exists {
@@ -109,7 +109,7 @@ func TestGetAvailableMonths(t *testing.T) {
 	now := time.Now()
 	lastMonth := now.AddDate(0, -1, 0)
 	twoMonthsAgo := now.AddDate(0, -2, 0)
-	
+
 	tasks := []internal.Task{
 		{ID: "1", Title: "Task 1", Updated: now},
 		{ID: "2", Title: "Task 2", Updated: lastMonth},

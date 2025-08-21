@@ -16,12 +16,12 @@ func KanbanCommand() error {
 		if err != nil {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
-		
+
 		kanbanTasks, kanbanModified, kanbanEditTask, kanbanDeletedIDs, kanbanReload, err := internal.ShowKanbanView(tasks)
 		if err != nil {
 			return fmt.Errorf("failed to show kanban view: %w", err)
 		}
-		
+
 		// Handle reload request
 		if kanbanReload {
 			if kanbanModified {
@@ -29,15 +29,15 @@ func KanbanCommand() error {
 				now := time.Now()
 				for i := range kanbanTasks {
 					for j := range tasks {
-						if kanbanTasks[i].ID == tasks[j].ID && 
-							(kanbanTasks[i].Status != tasks[j].Status || 
-							 kanbanTasks[i].Priority != tasks[j].Priority) {
+						if kanbanTasks[i].ID == tasks[j].ID &&
+							(kanbanTasks[i].Status != tasks[j].Status ||
+								kanbanTasks[i].Priority != tasks[j].Priority) {
 							kanbanTasks[i].Updated = now
 							break
 						}
 					}
 				}
-				
+
 				if err := internal.SaveTasks(kanbanTasks); err != nil {
 					fmt.Printf("Failed to save tasks before reload: %v\n", err)
 				} else {
@@ -47,12 +47,12 @@ func KanbanCommand() error {
 			fmt.Println("Reloading tasks...")
 			continue
 		}
-		
+
 		// If user quit without modifications, exit
 		if !kanbanModified && kanbanEditTask == nil && len(kanbanDeletedIDs) == 0 {
 			break
 		}
-		
+
 		// Handle task deletion
 		if len(kanbanDeletedIDs) > 0 {
 			// Collect deleted tasks for trash
@@ -65,24 +65,24 @@ func KanbanCommand() error {
 					}
 				}
 			}
-			
+
 			// Save to trash
 			if err := internal.SaveDeletedTasksToTrash(deletedTasks); err != nil {
 				fmt.Printf("Warning: failed to save to trash: %v\n", err)
 			}
-			
+
 			kanbanModified = true
 		}
-		
+
 		// Handle task editing
 		if kanbanEditTask != nil {
 			originalUpdated := kanbanEditTask.Updated
-			
+
 			if err := editTaskNoteKanban(kanbanEditTask); err != nil {
 				fmt.Printf("Editor error: %v\n", err)
 				continue
 			}
-			
+
 			if err := internal.UpdateTaskWithConflictCheck(kanbanEditTask.ID, originalUpdated, func(t *internal.Task) {
 				t.Title = kanbanEditTask.Title
 				t.Projects = kanbanEditTask.Projects
@@ -95,30 +95,30 @@ func KanbanCommand() error {
 				}
 				continue
 			}
-			
+
 			fmt.Printf("Task updated: %s\n", kanbanEditTask.Title)
 			continue
 		}
-		
+
 		// Save modifications
 		if kanbanModified {
 			// Update timestamps for modified tasks
 			now := time.Now()
 			for i := range kanbanTasks {
 				for j := range tasks {
-					if kanbanTasks[i].ID == tasks[j].ID && 
-						(kanbanTasks[i].Status != tasks[j].Status || 
-						 kanbanTasks[i].Priority != tasks[j].Priority) {
+					if kanbanTasks[i].ID == tasks[j].ID &&
+						(kanbanTasks[i].Status != tasks[j].Status ||
+							kanbanTasks[i].Priority != tasks[j].Priority) {
 						kanbanTasks[i].Updated = now
 						break
 					}
 				}
 			}
-			
+
 			if err := internal.SaveTasks(kanbanTasks); err != nil {
 				return fmt.Errorf("failed to save tasks: %w", err)
 			}
-			
+
 			if len(kanbanDeletedIDs) > 0 {
 				fmt.Printf("%d task(s) deleted and moved to trash.\n", len(kanbanDeletedIDs))
 			} else {
@@ -126,7 +126,7 @@ func KanbanCommand() error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -136,25 +136,25 @@ func editTaskNoteKanban(task *internal.Task) error {
 		return err
 	}
 	defer os.Remove(tempFile.Name())
-	
+
 	// Load configuration
 	config, _ := internal.LoadConfig()
-	
+
 	// Include projects in the title line
 	titleWithProjects := task.Title
 	for _, project := range task.Projects {
 		titleWithProjects += " +" + project
 	}
-	
+
 	noteContent := task.Note
-	
+
 	// Add timestamp if enabled in config
 	if config.Editor.AddTimestamp {
 		now := time.Now()
 		// Format: YYYY-MM-DD(Day) HH:MM
 		weekday := now.Format("Mon")
 		timestamp := fmt.Sprintf("\n\n## %s(%s) %s\n", now.Format("2006-01-02"), weekday, now.Format("15:04"))
-		
+
 		// Append timestamp to existing note or create new note with timestamp
 		if noteContent != "" {
 			noteContent += timestamp
@@ -162,47 +162,47 @@ func editTaskNoteKanban(task *internal.Task) error {
 			noteContent = timestamp
 		}
 	}
-	
+
 	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, noteContent)
 	if _, err := tempFile.WriteString(content); err != nil {
 		tempFile.Close()
 		return err
 	}
 	tempFile.Close()
-	
+
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"
 	}
-	
+
 	cmd := exec.Command(editor, tempFile.Name())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	
+
 	if err := cmd.Run(); err != nil {
 		return nil
 	}
-	
+
 	editedContent, err := os.ReadFile(tempFile.Name())
 	if err != nil {
 		return err
 	}
-	
+
 	parsedTitle, parsedProjects, parsedNote := parseEditedContentKanban(string(editedContent))
 	task.Title = parsedTitle
 	task.Projects = parsedProjects
 	task.Note = parsedNote
-	
+
 	return nil
 }
 
 func parseEditedContentKanban(content string) (title string, projects []string, note string) {
 	lines := strings.Split(content, "\n")
-	
+
 	foundTitle := false
 	var noteLines []string
-	
+
 	for _, line := range lines {
 		if !foundTitle && strings.HasPrefix(line, "# ") {
 			titleLine := strings.TrimPrefix(line, "# ")
@@ -211,24 +211,24 @@ func parseEditedContentKanban(content string) (title string, projects []string, 
 			foundTitle = true
 			continue
 		}
-		
+
 		if foundTitle {
 			noteLines = append(noteLines, line)
 		}
 	}
-	
+
 	// Remove leading empty lines
 	for len(noteLines) > 0 && noteLines[0] == "" {
 		noteLines = noteLines[1:]
 	}
-	
+
 	// Remove trailing empty lines
 	for len(noteLines) > 0 && noteLines[len(noteLines)-1] == "" {
 		noteLines = noteLines[:len(noteLines)-1]
 	}
-	
+
 	note = strings.Join(noteLines, "\n")
-	
+
 	// If no title found, use first line as title
 	if title == "" && len(lines) > 0 {
 		title = lines[0]
@@ -238,6 +238,6 @@ func parseEditedContentKanban(content string) (title string, projects []string, 
 			note = ""
 		}
 	}
-	
+
 	return title, projects, note
 }
