@@ -1,0 +1,28 @@
+{{define "kanban"}}
+<div class="kanban-board">
+    {{range $status := .Statuses}}
+    <div class="kanban-column {{lower $status}}">
+        <div class="kanban-header">{{$status}}</div>
+        <div class="kanban-cards">
+            {{range $task := index $.TasksByStatus $status}}
+            <div class="kanban-card">
+                {{if $task.Priority}}
+                <span class="card-priority">{{$task.Priority}}</span>
+                {{end}}
+                <div class="card-title">{{$task.Title}}</div>
+                {{if $task.Projects}}
+                <div class="card-projects">
+                    {{range $project := $task.Projects}}
+                    <span class="project-tag" style="background-color: {{projectColor $project}}20; color: {{projectColor $project}};">
+                        +{{$project}}
+                    </span>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="global-nav">
+        <div class="nav-title">Taskeru</div>
+        <div class="nav-links">
+            <a href="/kanban" {{if eq .ActiveView "kanban"}}class="active"{{end}}>Kanban</a>
+            <a href="/daily" {{if eq .ActiveView "daily"}}class="active"{{end}}>Daily Report</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        {{template "kanban" .}}
+    </div>
+</body>
+</html>

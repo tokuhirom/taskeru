@@ -1,0 +1,371 @@
+{{define "daily"}}
+<div class="month-navigation">
+    <div class="month-nav-arrows">
+        <a href="/daily/{{.PrevMonth.Year}}/{{.PrevMonth.Month}}">← Previous</a>
+        <span class="current-month">{{.Year}}年{{.Month}}月 ({{.MonthName}})</span>
+        <a href="/daily/{{.NextMonth.Year}}/{{.NextMonth.Month}}">Next →</a>
+    </div>
+    <div class="month-selector">
+        {{range $ym := .AvailableMonths}}
+        <a href="/daily/{{$ym.Year}}/{{$ym.Month}}" 
+           {{if and (eq $ym.Year $.Year) (eq $ym.Month $.Month)}}class="current"{{end}}>
+            {{$ym.Year}}/{{printf "%02d" $ym.Month}}
+        </a>
+        {{end}}
+    </div>
+</div>
+
+<div class="daily-entries" id="daily-content">
+    {{range $date := .Dates}}
+    {{$tasks := index $.TasksByDate $date}}
+    <div class="daily-entry">
+        <h2 class="date-header">{{$date}}</h2>
+        <ul class="task-list">
+        {{range $index, $task := $tasks}}
+            <li class="task-list-item">
+                <div class="task-summary">
+                    <span class="task-status-badge {{lower $task.Status}}">{{$task.Status}}</span>
+                    {{if $task.Priority}}
+                    <span class="priority-badge">{{$task.Priority}}</span>
+                    {{end}}
+                    <span class="task-title">{{$task.Title}}</span>
+                    {{range $project := $task.Projects}}
+                    <span class="project-tag" style="background-color: {{projectColor $project}}20; color: {{projectColor $project}};">
+                        +{{$project}}
+                    </span>
+                    {{end}}
+                    {{if $task.Note}}
+                    <button class="expand-btn" onclick="toggleNote('note-{{$date}}-{{$index}}')">
+                        <span class="expand-icon">▶</span> Note
+                    </button>
+                    {{end}}
+                </div>
+                {{if $task.Note}}
+                <div id="note-{{$date}}-{{$index}}" class="task-note-container" style="display: none;">
+                    <div class="task-note rich-text">
+                        {{markdown $task.Note}}
+                    </div>
+                </div>
+                {{end}}
+            </li>
+        {{end}}
+        </ul>
+    </div>
+    {{end}}
+</div>
+
+<div class="action-buttons">
+    <button onclick="expandAll()" class="action-button">Expand All</button>
+    <button onclick="collapseAll()" class="action-button">Collapse All</button>
+    <button onclick="copyAsRichText()" class="action-button primary">Copy as Rich Text</button>
+</div>
+
+<script>
+function toggleNote(noteId) {
+    const noteElement = document.getElementById(noteId);
+    const button = event.target.closest('.expand-btn');
+    const icon = button.querySelector('.expand-icon');
+    
+    if (noteElement.style.display === 'none') {
+        noteElement.style.display = 'block';
+        icon.textContent = '▼';
+        button.classList.add('expanded');
+    } else {
+        noteElement.style.display = 'none';
+        icon.textContent = '▶';
+        button.classList.remove('expanded');
+    }
+}
+
+function expandAll() {
+    document.querySelectorAll('.task-note-container').forEach(note => {
+        note.style.display = 'block';
+    });
+    document.querySelectorAll('.expand-icon').forEach(icon => {
+        icon.textContent = '▼';
+    });
+    document.querySelectorAll('.expand-btn').forEach(btn => {
+        btn.classList.add('expanded');
+    });
+}
+
+function collapseAll() {
+    document.querySelectorAll('.task-note-container').forEach(note => {
+        note.style.display = 'none';
+    });
+    document.querySelectorAll('.expand-icon').forEach(icon => {
+        icon.textContent = '▶';
+    });
+    document.querySelectorAll('.expand-btn').forEach(btn => {
+        btn.classList.remove('expanded');
+    });
+}
+
+function copyAsRichText() {
+    const content = document.getElementById('daily-content');
+    const selection = window.getSelection();
+    const range = document.createRange();
+    
+    // Clone the content and format it for rich text pasting
+    const cloned = content.cloneNode(true);
+    
+    // Remove unnecessary classes but keep structure
+    cloned.querySelectorAll('[class]').forEach(el => {
+        // Keep semantic HTML but remove CSS classes
+        if (el.tagName === 'H2') {
+            el.style.fontSize = '1.5em';
+            el.style.fontWeight = 'bold';
+            el.style.marginTop = '1em';
+            el.style.marginBottom = '0.5em';
+        }
+        if (el.classList.contains('task-status')) {
+            // Convert status to styled span for rich text
+            const status = el.textContent;
+            let bgColor = '#6c757d';
+            let textColor = 'white';
+            
+            if (status === 'DONE') bgColor = '#28a745';
+            else if (status === 'DOING') { bgColor = '#ffc107'; textColor = '#333'; }
+            else if (status === 'WAITING') bgColor = '#17a2b8';
+            else if (status === 'WONTDO') bgColor = '#dc3545';
+            
+            el.style.backgroundColor = bgColor;
+            el.style.color = textColor;
+            el.style.padding = '2px 6px';
+            el.style.borderRadius = '3px';
+            el.style.fontSize = '0.9em';
+            el.style.display = 'inline-block';
+            el.style.marginRight = '8px';
+        }
+        if (el.classList.contains('project-tag')) {
+            // Keep inline styles for project tags
+            el.style.padding = '2px 8px';
+            el.style.borderRadius = '12px';
+            el.style.fontSize = '0.85em';
+            el.style.display = 'inline-block';
+            el.style.marginLeft = '4px';
+        }
+        if (el.classList.contains('task-item')) {
+            el.style.marginBottom = '1em';
+            el.style.padding = '0.5em';
+            el.style.borderLeft = '4px solid #007bff';
+            el.style.backgroundColor = '#f5f5f5';
+        }
+        if (el.classList.contains('task-note')) {
+            el.style.marginTop = '0.5em';
+            el.style.padding = '0.5em';
+            el.style.backgroundColor = 'white';
+            el.style.border = '1px solid #e0e0e0';
+            el.style.borderRadius = '4px';
+        }
+        el.removeAttribute('class');
+    });
+    
+    // Create temporary container
+    const temp = document.createElement('div');
+    temp.style.position = 'absolute';
+    temp.style.left = '-9999px';
+    temp.appendChild(cloned);
+    document.body.appendChild(temp);
+    
+    // Select and copy
+    range.selectNodeContents(temp);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    
+    try {
+        document.execCommand('copy');
+        // Show feedback
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        button.style.backgroundColor = '#28a745';
+        setTimeout(() => {
+            button.textContent = originalText;
+            button.style.backgroundColor = '';
+        }, 2000);
+    } catch (err) {
+        console.error('Copy failed:', err);
+        alert('Copy failed. Please select the content manually.');
+    }
+    
+    // Cleanup
+    selection.removeAllRanges();
+    document.body.removeChild(temp);
+}
+</script>
+
+<style>
+/* Simplified Daily Report Styles */
+.task-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.task-list-item {
+    margin-bottom: 0.75rem;
+    border-left: 3px solid #e0e0e0;
+    padding-left: 1rem;
+    transition: border-color 0.2s;
+}
+
+.task-list-item:hover {
+    border-left-color: #007bff;
+}
+
+.task-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0;
+}
+
+.task-status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.task-status-badge.todo { background: #6c757d; color: white; }
+.task-status-badge.doing { background: #ffc107; color: #333; }
+.task-status-badge.waiting { background: #17a2b8; color: white; }
+.task-status-badge.done { background: #28a745; color: white; }
+.task-status-badge.wontdo { background: #dc3545; color: white; }
+
+.priority-badge {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    background: #ff6b6b;
+    color: white;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.task-title {
+    font-weight: 500;
+    color: #333;
+}
+
+.expand-btn {
+    margin-left: auto;
+    padding: 0.25rem 0.5rem;
+    background: #f0f0f0;
+    border: 1px solid #d0d0d0;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.expand-btn:hover {
+    background: #e0e0e0;
+}
+
+.expand-btn.expanded {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.expand-icon {
+    font-size: 0.7rem;
+    transition: transform 0.2s;
+}
+
+.task-note-container {
+    margin-top: 0.5rem;
+    margin-left: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+
+.action-buttons {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-button {
+    padding: 0.5rem 1rem;
+    background: white;
+    color: #333;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-button:hover {
+    background: #f0f0f0;
+    transform: translateY(-1px);
+}
+
+.action-button.primary {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-button.primary:hover {
+    background: #0056b3;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
+/* Rich text compatible styles */
+.rich-content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.rich-text h1 { font-size: 1.8em; margin: 1em 0 0.5em 0; }
+.rich-text h2 { font-size: 1.5em; margin: 1em 0 0.5em 0; }
+.rich-text h3 { font-size: 1.2em; margin: 1em 0 0.5em 0; }
+.rich-text p { margin: 0.5em 0; }
+.rich-text ul, .rich-text ol { margin: 0.5em 0 0.5em 2em; }
+.rich-text li { margin: 0.25em 0; }
+.rich-text code { 
+    background: #f4f4f4; 
+    padding: 0.1em 0.3em; 
+    border-radius: 3px; 
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+}
+.rich-text pre {
+    background: #f4f4f4;
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+.rich-text blockquote {
+    border-left: 4px solid #d0d0d0;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #666;
+}
+.rich-text table {
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+.rich-text th, .rich-text td {
+    border: 1px solid #d0d0d0;
+    padding: 0.5em;
+}
+.rich-text th {
+    background: #f0f0f0;
+    font-weight: bold;
+}
+</style>
+{{end}}

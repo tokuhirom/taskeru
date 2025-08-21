@@ -80,6 +80,12 @@ func Execute() {
 		err = EditCommand()
 	case "kanban":
 		err = KanbanCommand()
+	case "httpd":
+		addr := ""
+		if len(nonFlagArgs) > 0 {
+			addr = nonFlagArgs[0]
+		}
+		err = HttpdCommand(addr)
 	case "init-config":
 		err = InitConfigCommand()
 	case "help", "-h", "--help":
@@ -110,6 +116,7 @@ Commands:
   ls, list       List all tasks
   edit, e        Edit a task interactively
   kanban         Show tasks in kanban board view
+  httpd [addr]   Start HTTP server (default: 127.0.0.1:7676)
   init-config    Create default configuration file
   help           Show this help message
 
