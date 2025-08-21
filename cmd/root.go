@@ -98,6 +98,7 @@ Commands:
 Interactive Mode Keys:
   j/k or ↑/↓    Move cursor
   space         Toggle task done/todo
+  /             Search tasks (title, projects, notes)
   a             Show all tasks (including old completed)
   c             Create new task
   e             Edit selected task

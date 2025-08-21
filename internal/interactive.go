@@ -22,6 +22,10 @@ type InteractiveTaskList struct {
 	newTaskTitle    string
 	shouldReload    bool
 	showProjectView bool
+	searchMode      bool
+	searchQuery     string
+	searchCursor    int
+	matchingTasks   map[string]bool // Track which tasks match the search
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
@@ -42,6 +46,10 @@ func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
 		newTaskTitle:    "",
 		shouldReload:    false,
 		showProjectView: false,
+		searchMode:      false,
+		searchQuery:     "",
+		searchCursor:    0,
+		matchingTasks:   make(map[string]bool),
 	}
 }
 
@@ -52,6 +60,79 @@ func (m InteractiveTaskList) Init() tea.Cmd {
 func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle search mode
+		if m.searchMode {
+			searchRunes := []rune(m.searchQuery)
+			
+			switch msg.Type {
+			case tea.KeyEnter:
+				// Exit search input mode but keep highlights
+				m.searchMode = false
+				// Jump to first match if there are any
+				if len(m.matchingTasks) > 0 {
+					m.jumpToFirstMatch()
+				}
+			case tea.KeyEsc:
+				// Exit search input mode but keep highlights (same as Enter)
+				m.searchMode = false
+			case tea.KeyCtrlA:
+				m.searchCursor = 0
+			case tea.KeyCtrlE:
+				m.searchCursor = len(searchRunes)
+			case tea.KeyCtrlF, tea.KeyRight:
+				if m.searchCursor < len(searchRunes) {
+					m.searchCursor++
+				}
+			case tea.KeyCtrlB, tea.KeyLeft:
+				if m.searchCursor > 0 {
+					m.searchCursor--
+				}
+			case tea.KeyCtrlH, tea.KeyBackspace:
+				if m.searchCursor > 0 && len(searchRunes) > 0 {
+					m.searchQuery = string(append(searchRunes[:m.searchCursor-1], searchRunes[m.searchCursor:]...))
+					m.searchCursor--
+					// Update matching tasks
+					m.updateMatches()
+				}
+			case tea.KeyDelete:
+				if m.searchCursor < len(searchRunes) {
+					m.searchQuery = string(append(searchRunes[:m.searchCursor], searchRunes[m.searchCursor+1:]...))
+					// Update matching tasks
+					m.updateMatches()
+				}
+			case tea.KeyRunes:
+				newRunes := append(searchRunes[:m.searchCursor], append(msg.Runes, searchRunes[m.searchCursor:]...)...)
+				m.searchQuery = string(newRunes)
+				m.searchCursor += len(msg.Runes)
+				// Update matching tasks
+				m.updateMatches()
+				// Jump to first match if we just started typing
+				if len(searchRunes) == 0 {
+					m.jumpToFirstMatch()
+				}
+			case tea.KeySpace:
+				newRunes := append(searchRunes[:m.searchCursor], append([]rune{' '}, searchRunes[m.searchCursor:]...)...)
+				m.searchQuery = string(newRunes)
+				m.searchCursor++
+				// Update matching tasks
+				m.updateMatches()
+			default:
+				str := msg.String()
+				if len(str) == 1 && str != " " {
+					newRunes := append(searchRunes[:m.searchCursor], append([]rune(str), searchRunes[m.searchCursor:]...)...)
+					m.searchQuery = string(newRunes)
+					m.searchCursor++
+					// Update matching tasks
+					m.updateMatches()
+					// Jump to first match if we just started typing
+					if len(searchRunes) == 0 {
+						m.jumpToFirstMatch()
+					}
+				}
+			}
+			return m, nil
+		}
+		
 		// Handle input mode
 		if m.inputMode {
 			runes := []rune(m.inputBuffer)
@@ -169,9 +250,21 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		case "ctrl+c", "q":
 			m.quit = true
 			return m, tea.Quit
+		
+		case "esc":
+			// Clear search highlights if search is active
+			if m.searchQuery != "" {
+				m.searchQuery = ""
+				m.searchCursor = 0
+				m.matchingTasks = make(map[string]bool)
+			} else {
+				// Otherwise quit
+				m.quit = true
+				return m, tea.Quit
+			}
 
 		case "up", "k":
 			if m.cursor > 0 {
@@ -287,8 +380,11 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "n":
-			// Cancel deletion
-			if m.confirmDelete {
+			// Jump to next match when search is active and not in delete confirmation
+			if !m.confirmDelete && m.searchQuery != "" {
+				m.jumpToNextMatch()
+			} else if m.confirmDelete {
+				// Cancel deletion
 				m.confirmDelete = false
 			}
 
@@ -302,6 +398,21 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Jump to last task
 			if !m.confirmDelete && !m.inputMode && len(m.tasks) > 0 {
 				m.cursor = len(m.tasks) - 1
+			}
+
+		case "/":
+			// Enter search mode
+			if !m.confirmDelete {
+				m.searchMode = true
+				m.searchQuery = ""
+				m.searchCursor = 0
+				m.matchingTasks = make(map[string]bool)
+			}
+		
+		case "N":
+			// Jump to previous match when search is active
+			if !m.confirmDelete && m.searchQuery != "" {
+				m.jumpToPrevMatch()
 			}
 
 		case "c":
@@ -464,20 +575,29 @@ func (m InteractiveTaskList) View() string {
 		status := task.DisplayStatus()
 		priority := task.DisplayPriority()
 
-		// Add color based on status
+		// Check if this task matches the search (highlight even when not in search mode)
+		isMatch := m.searchQuery != "" && m.matchingTasks[task.ID]
+		
+		// Add color based on status or highlight for search match
 		var line string
 		var statusColor string
-		switch task.Status {
-		case StatusDONE:
-			statusColor = "\x1b[90m" // gray
-		case StatusDOING:
-			statusColor = "\x1b[33m" // yellow
-		case StatusWAITING:
-			statusColor = "\x1b[34m" // blue
-		case StatusWONTDO:
-			statusColor = "\x1b[90m" // gray
-		default: // TODO
-			statusColor = "\x1b[37m" // white
+		
+		if isMatch {
+			// Highlight matching tasks with yellow background
+			statusColor = "\x1b[43m\x1b[30m" // yellow background, black text
+		} else {
+			switch task.Status {
+			case StatusDONE:
+				statusColor = "\x1b[90m" // gray
+			case StatusDOING:
+				statusColor = "\x1b[33m" // yellow
+			case StatusWAITING:
+				statusColor = "\x1b[34m" // blue
+			case StatusWONTDO:
+				statusColor = "\x1b[90m" // gray
+			default: // TODO
+				statusColor = "\x1b[37m" // white
+			}
 		}
 
 		line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
@@ -501,7 +621,26 @@ func (m InteractiveTaskList) View() string {
 		s.WriteString(line)
 	}
 
-	if m.inputMode {
+	if m.searchMode {
+		// Show search input
+		searchRunes := []rune(m.searchQuery)
+		var displayStr string
+		
+		// Add cursor display
+		if m.searchCursor == 0 {
+			displayStr = "│" + m.searchQuery
+		} else if m.searchCursor < len(searchRunes) {
+			displayStr = string(searchRunes[:m.searchCursor]) + "│" + string(searchRunes[m.searchCursor:])
+		} else {
+			displayStr = m.searchQuery + "│"
+		}
+		
+		s.WriteString("\n\n🔍 Search: " + displayStr)
+		if m.searchQuery != "" {
+			s.WriteString(fmt.Sprintf(" (%d matches)", len(m.matchingTasks)))
+		}
+		s.WriteString("\n\nEnter: exit input mode • Esc: exit input mode • Ctrl+A/E: begin/end • Ctrl+F/B: move • Ctrl+H: backspace")
+	} else if m.inputMode {
 		// Display input with cursor
 		runes := []rune(m.inputBuffer)
 		var displayStr string
@@ -519,7 +658,11 @@ func (m InteractiveTaskList) View() string {
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
 	} else {
-		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • space: toggle done • a: all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
+		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • space: toggle done • /: search")
+		if m.searchQuery != "" && !m.searchMode {
+			s.WriteString(" • n/N: next/prev match • ESC: clear search")
+		}
+		s.WriteString(" • a: all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
 		if m.showAll {
 			s.WriteString(" [ALL]")
 		}
@@ -560,6 +703,98 @@ func (m InteractiveTaskList) GetNewTaskTitle() string {
 
 func (m InteractiveTaskList) ShouldReload() bool {
 	return m.shouldReload
+}
+
+// updateMatches updates which tasks match the current search query
+func (m *InteractiveTaskList) updateMatches() {
+	m.matchingTasks = make(map[string]bool)
+	
+	if m.searchQuery == "" {
+		return
+	}
+	
+	query := strings.ToLower(m.searchQuery)
+	
+	for _, task := range m.tasks {
+		// Search in title, projects, and note
+		titleMatch := strings.Contains(strings.ToLower(task.Title), query)
+		noteMatch := strings.Contains(strings.ToLower(task.Note), query)
+		
+		// Check projects
+		projectMatch := false
+		for _, project := range task.Projects {
+			if strings.Contains(strings.ToLower(project), query) {
+				projectMatch = true
+				break
+			}
+		}
+		
+		if titleMatch || noteMatch || projectMatch {
+			m.matchingTasks[task.ID] = true
+		}
+	}
+}
+
+// jumpToFirstMatch moves cursor to the first matching task
+func (m *InteractiveTaskList) jumpToFirstMatch() {
+	for i, task := range m.tasks {
+		if m.matchingTasks[task.ID] {
+			m.cursor = i
+			break
+		}
+	}
+}
+
+// jumpToNextMatch moves cursor to the next matching task
+func (m *InteractiveTaskList) jumpToNextMatch() {
+	if len(m.matchingTasks) == 0 {
+		return
+	}
+	
+	// Start searching from the next position
+	startPos := m.cursor + 1
+	
+	// Search from current position to end
+	for i := startPos; i < len(m.tasks); i++ {
+		if m.matchingTasks[m.tasks[i].ID] {
+			m.cursor = i
+			return
+		}
+	}
+	
+	// Wrap around to beginning
+	for i := 0; i < startPos && i < len(m.tasks); i++ {
+		if m.matchingTasks[m.tasks[i].ID] {
+			m.cursor = i
+			return
+		}
+	}
+}
+
+// jumpToPrevMatch moves cursor to the previous matching task
+func (m *InteractiveTaskList) jumpToPrevMatch() {
+	if len(m.matchingTasks) == 0 {
+		return
+	}
+	
+	// Start searching from the previous position
+	startPos := m.cursor - 1
+	
+	// Search from current position to beginning
+	for i := startPos; i >= 0; i-- {
+		if m.matchingTasks[m.tasks[i].ID] {
+			m.cursor = i
+			return
+		}
+	}
+	
+	// Wrap around to end
+	for i := len(m.tasks) - 1; i > startPos && i >= 0; i-- {
+		if m.matchingTasks[m.tasks[i].ID] {
+			m.cursor = i
+			return
+		}
+	}
 }
 
 func (m InteractiveTaskList) ShouldShowProjectView() bool {
