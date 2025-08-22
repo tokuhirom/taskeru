@@ -8,12 +8,19 @@ import (
 )
 
 func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
-	// Create test tasks
+	// Create test tasks with different timestamps to ensure consistent ordering
+	now := time.Now()
 	tasks := []Task{
 		*NewTask("Task 1"),
 		*NewTask("Task 2"),
 		*NewTask("Task 3"),
 	}
+
+	// Set different updated times to ensure predictable sort order
+	// Newer tasks come first in sorting, so to get Task 1 first, it needs the newest time
+	tasks[0].Updated = now.Add(-1 * time.Hour) // Task 1 - newest
+	tasks[1].Updated = now.Add(-2 * time.Hour) // Task 2 - middle
+	tasks[2].Updated = now.Add(-3 * time.Hour) // Task 3 - oldest
 
 	// All tasks start as TODO
 	for i := range tasks {
@@ -39,6 +46,17 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	if interactiveModel.cursor != 1 {
 		t.Errorf("Cursor should be at position 1, got %d", interactiveModel.cursor)
 	}
+	
+	// Verify we're pointing to Task 3
+	if interactiveModel.cursor < len(interactiveModel.tasks) {
+		currentTask := interactiveModel.tasks[interactiveModel.cursor]
+		if currentTask.Title != "Task 3" {
+			t.Errorf("After moving cursor down, should point to 'Task 3', but points to '%s'", currentTask.Title)
+			for i, task := range interactiveModel.tasks {
+				t.Logf("  [%d] %s - %s", i, task.Title, task.Status)
+			}
+		}
+	}
 
 	// Now change Task 3 to DONE (it will stay visible as it's completed today)
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeySpace})
@@ -48,12 +66,20 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	// So we still have 2 visible tasks
 	if len(interactiveModel.tasks) != 2 {
 		t.Errorf("Should still have 2 visible tasks, got %d", len(interactiveModel.tasks))
+		for i, task := range interactiveModel.tasks {
+			t.Logf("  [%d] %s - %s", i, task.Title, task.Status)
+		}
 	}
 
 	// Cursor should follow Task 3 to its new position
+	t.Logf("Cursor position: %d", interactiveModel.cursor)
 	if interactiveModel.cursor < len(interactiveModel.tasks) {
 		currentTask := interactiveModel.tasks[interactiveModel.cursor]
 		if currentTask.Title != "Task 3" {
+			t.Logf("Tasks after space:")
+			for i, task := range interactiveModel.tasks {
+				t.Logf("  [%d] %s - %s", i, task.Title, task.Status)
+			}
 			t.Errorf("Cursor should still point to 'Task 3', but points to '%s'", currentTask.Title)
 		}
 	}
@@ -61,12 +87,20 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 
 func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
 	// Create test tasks where some will be visible and some hidden
+	now := time.Now()
 	tasks := []Task{
 		*NewTask("Task 1"),
 		*NewTask("Task 2"),
 		*NewTask("Old completed task"),
 		*NewTask("Task 3"),
 	}
+
+	// Set different updated times to ensure predictable sort order
+	// Newer tasks come first in sorting
+	tasks[0].Updated = now.Add(-1 * time.Hour) // Task 1 - newest
+	tasks[1].Updated = now.Add(-2 * time.Hour) // Task 2
+	tasks[2].Updated = now.Add(-3 * time.Hour) // Old completed
+	tasks[3].Updated = now.Add(-4 * time.Hour) // Task 3 - oldest
 
 	// Task 1 and 2 are TODO
 	tasks[0].Status = StatusTODO

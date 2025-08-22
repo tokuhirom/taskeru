@@ -102,16 +102,16 @@ func TestProjectFilterTitle(t *testing.T) {
 	model := NewInteractiveTaskListWithFilter(tasks, "myproject")
 	view := model.View()
 
-	expectedTitle := "Tasks [Project: myproject]:"
-	if !containsStr(view, expectedTitle) {
-		t.Errorf("View should contain '%s' when project filter is set", expectedTitle)
+	// Check that the view contains the project filter (format: "Tasks for project: +myproject")
+	if !containsStr(view, "Tasks for project:") || !containsStr(view, "+myproject") {
+		t.Errorf("View should contain 'Tasks for project: +myproject' when project filter is set")
 	}
 
 	// Test without filter
 	modelNoFilter := NewInteractiveTaskList(tasks)
 	viewNoFilter := modelNoFilter.View()
 
-	if containsStr(viewNoFilter, "[Project:") {
+	if containsStr(viewNoFilter, "Tasks for project:") {
 		t.Error("View should not contain project filter when no filter is set")
 	}
 }

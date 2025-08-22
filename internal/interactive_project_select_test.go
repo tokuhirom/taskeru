@@ -74,7 +74,7 @@ func TestProjectSelectionMode(t *testing.T) {
 	}
 
 	view = m.View()
-	if !strings.Contains(view, "[Project: work]") {
+	if !strings.Contains(view, "Tasks for project:") || !strings.Contains(view, "+work") {
 		t.Error("View should show project filter in title")
 	}
 
