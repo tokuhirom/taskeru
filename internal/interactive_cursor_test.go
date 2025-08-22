@@ -46,7 +46,7 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	if interactiveModel.cursor != 1 {
 		t.Errorf("Cursor should be at position 1, got %d", interactiveModel.cursor)
 	}
-	
+
 	// Verify we're pointing to Task 3
 	if interactiveModel.cursor < len(interactiveModel.tasks) {
 		currentTask := interactiveModel.tasks[interactiveModel.cursor]
