@@ -1,0 +1,18 @@
+# lefthook configuration for taskeru
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: false
+  commands:
+    golangci-fmt:
+      glob: "*.go"
+      run: golangci-lint run --fix --issues-exit-code=0 {staged_files}
+      stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    test:
+      run: go test ./...
+    golangci-lint:
+      run: golangci-lint run
