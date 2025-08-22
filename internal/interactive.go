@@ -1018,7 +1018,11 @@ func (m InteractiveTaskList) View() string {
 		}
 
 		s.WriteString(fmt.Sprintf("\n\n📅 Set %s: %s", dateType, displayStr))
-		s.WriteString("\n\nEnter: apply • Esc: cancel • Format: today/tomorrow/monday/2024-12-31/12-25")
+		s.WriteString("\n\nEnter: apply • Esc: cancel")
+		s.WriteString("\n\nSupported formats:")
+		s.WriteString("\n  • Natural: next tuesday, in 3 days, next week, in 2 weeks")
+		s.WriteString("\n  • Simple: today, tomorrow, monday")
+		s.WriteString("\n  • Dates: 2024-12-31, 12-25, 12/25")
 	} else if m.inputMode {
 		// Display input with cursor
 		runes := []rune(m.inputBuffer)
