@@ -93,7 +93,7 @@ func (m InteractiveTaskList) Init() tea.Cmd {
 func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string, status string, priority string, title string, projects []string, additionalInfo string) string {
 	// Calculate base components length
 	baseLen := len(cursor) + len(status) + 1 + len(priority) + 1 // cursor + status + space + priority + space
-	
+
 	// Calculate projects display length (including color codes, which we'll estimate)
 	projectsStr := ""
 	projectsDisplayLen := 0
@@ -101,7 +101,7 @@ func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string,
 		projectsStr += fmt.Sprintf(" +%s", project)
 		projectsDisplayLen += len(project) + 2 // +project and space
 	}
-	
+
 	// Calculate additional info length (dates, etc)
 	additionalDisplayLen := 0
 	if additionalInfo != "" {
@@ -109,10 +109,10 @@ func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string,
 		strippedInfo := m.stripAnsiCodes(additionalInfo)
 		additionalDisplayLen = len(strippedInfo)
 	}
-	
+
 	// Available width for title
 	availableWidth := m.width - baseLen - projectsDisplayLen - additionalDisplayLen - 5 // 5 for safety margin
-	
+
 	// Truncate title if necessary
 	displayTitle := title
 	if availableWidth > 10 && len(title) > availableWidth { // Keep at least 10 chars for title
@@ -121,7 +121,7 @@ func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string,
 		// If very limited space, show minimal title
 		displayTitle = title[:7] + "..."
 	}
-	
+
 	return fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, displayTitle)
 }
 
@@ -183,7 +183,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		return m, nil
-		
+
 	case tea.KeyMsg:
 		// Handle project select mode
 		if m.projectSelectMode {
@@ -917,7 +917,7 @@ func (m InteractiveTaskList) View() string {
 
 		// Build additional info (dates)
 		additionalInfo := ""
-		
+
 		// Add scheduled date if future
 		if task.IsFutureScheduled() {
 			schedIn := time.Until(*task.ScheduledDate)
@@ -958,7 +958,7 @@ func (m InteractiveTaskList) View() string {
 				additionalInfo += fmt.Sprintf(" \x1b[90m(due %s)\x1b[0m", task.DueDate.Format("01-02"))
 			}
 		}
-		
+
 		// Build the complete line with truncation
 		// First build projects string with colors
 		projectsStr := ""
@@ -968,10 +968,10 @@ func (m InteractiveTaskList) View() string {
 				projectsStr += fmt.Sprintf(" %s+%s\x1b[0m", projectColor, project)
 			}
 		}
-		
+
 		// Use truncate function to build the line with all components
 		line = m.truncateTaskLine(cursor, statusColor, status, priority, task.Title, task.Projects, additionalInfo)
-		
+
 		// Add projects and additional info (already accounted for in truncation calculation)
 		line += projectsStr
 		line += additionalInfo
