@@ -34,6 +34,11 @@
                 {{end}}
             </div>
             {{end}}
+            {{if or (eq $status "DONE") (eq $status "WONTDO")}}
+            <div class="kanban-footer">
+                <small>Tasks older than 1 day are hidden</small>
+            </div>
+            {{end}}
         </div>
     </div>
     {{end}}
