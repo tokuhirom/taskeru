@@ -175,14 +175,14 @@ func editTaskNoteInteractive(task *internal.Task) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpfile.Name())
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	// Pre-fill with current title and note
 	content := fmt.Sprintf("# %s\n\n%s", task.Title, task.Note)
 	if _, err := tmpfile.WriteString(content); err != nil {
 		return fmt.Errorf("failed to write to temp file: %w", err)
 	}
-	tmpfile.Close()
+	_ = tmpfile.Close()
 
 	// Open editor
 	editor := os.Getenv("EDITOR")
@@ -239,27 +239,5 @@ func editTaskNoteInteractive(task *internal.Task) error {
 	task.Projects = projects
 	task.Note = strings.Join(noteLines, "\n")
 
-	return nil
-}
-
-func editTaskInteractive(task *internal.Task) error {
-	// Remember the original updated time for conflict detection
-	originalUpdated := task.Updated
-
-	// Open editor for the task
-	if err := editTaskNoteInteractive(task); err != nil {
-		return fmt.Errorf("editor error: %w", err)
-	}
-
-	// Update the task with conflict check
-	if err := internal.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
-		t.Title = task.Title
-		t.Projects = task.Projects
-		t.Note = task.Note
-	}); err != nil {
-		return err
-	}
-
-	fmt.Printf("Task updated: %s\n", task.Title)
 	return nil
 }

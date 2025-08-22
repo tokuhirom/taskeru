@@ -10,29 +10,29 @@ import (
 )
 
 type InteractiveTaskList struct {
-	allTasks        []Task
-	tasks           []Task
-	cursor          int
-	modified        bool
-	showAll         bool
-	quit            bool
-	confirmDelete   bool
-	deletedTaskIDs  []string
-	inputMode       bool
-	inputBuffer     string
-	inputCursor     int // Cursor position in input buffer
-	newTaskTitle    string
-	shouldReload    bool
-	searchMode      bool
-	searchQuery     string
-	searchCursor    int
-	matchingTasks   map[string]bool // Track which tasks match the search
-	dateEditMode     string          // "deadline" or "scheduled"
-	dateEditBuffer   string
-	dateEditCursor   int
-	projectFilter    string // Filter tasks by project
-	projectSelectMode bool  // Mode for selecting project filter
-	projectCursor    int    // Cursor position in project list
+	allTasks          []Task
+	tasks             []Task
+	cursor            int
+	modified          bool
+	showAll           bool
+	quit              bool
+	confirmDelete     bool
+	deletedTaskIDs    []string
+	inputMode         bool
+	inputBuffer       string
+	inputCursor       int // Cursor position in input buffer
+	newTaskTitle      string
+	shouldReload      bool
+	searchMode        bool
+	searchQuery       string
+	searchCursor      int
+	matchingTasks     map[string]bool // Track which tasks match the search
+	dateEditMode      string          // "deadline" or "scheduled"
+	dateEditBuffer    string
+	dateEditCursor    int
+	projectFilter     string // Filter tasks by project
+	projectSelectMode bool   // Mode for selecting project filter
+	projectCursor     int    // Cursor position in project list
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
@@ -55,22 +55,22 @@ func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *Inter
 	filteredTasks := FilterVisibleTasks(filteredByProject, false)
 
 	return &InteractiveTaskList{
-		allTasks:        tasks,
-		tasks:           filteredTasks,
-		cursor:          0,
-		modified:        false,
-		showAll:         false,
-		confirmDelete:   false,
-		deletedTaskIDs:  []string{},
-		inputMode:       false,
-		inputBuffer:     "",
-		inputCursor:     0,
-		newTaskTitle:    "",
-		shouldReload:    false,
-		searchMode:      false,
-		searchQuery:     "",
-		searchCursor:    0,
-		matchingTasks:   make(map[string]bool),
+		allTasks:          tasks,
+		tasks:             filteredTasks,
+		cursor:            0,
+		modified:          false,
+		showAll:           false,
+		confirmDelete:     false,
+		deletedTaskIDs:    []string{},
+		inputMode:         false,
+		inputBuffer:       "",
+		inputCursor:       0,
+		newTaskTitle:      "",
+		shouldReload:      false,
+		searchMode:        false,
+		searchQuery:       "",
+		searchCursor:      0,
+		matchingTasks:     make(map[string]bool),
 		dateEditMode:      "",
 		dateEditBuffer:    "",
 		dateEditCursor:    0,
@@ -106,12 +106,12 @@ func (m *InteractiveTaskList) getAvailableProjects() []string {
 			projectMap[project] = true
 		}
 	}
-	
+
 	var projects []string
 	for project := range projectMap {
 		projects = append(projects, project)
 	}
-	
+
 	// Sort projects alphabetically
 	sort.Strings(projects)
 	return projects
@@ -123,7 +123,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle project select mode
 		if m.projectSelectMode {
 			projects := m.getAvailableProjects()
-			
+
 			switch msg.String() {
 			case "esc", "q":
 				m.projectSelectMode = false
@@ -150,7 +150,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		}
-		
+
 		// Handle date edit mode
 		if m.dateEditMode != "" {
 			dateRunes := []rune(m.dateEditBuffer)
@@ -177,9 +177,10 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							}
 
 							// Update the task
-							if m.dateEditMode == "deadline" {
+							switch m.dateEditMode {
+							case "deadline":
 								m.allTasks[i].DueDate = parsedDate
-							} else if m.dateEditMode == "scheduled" {
+							case "scheduled":
 								m.allTasks[i].ScheduledDate = parsedDate
 							}
 							m.allTasks[i].Updated = time.Now()
@@ -864,7 +865,7 @@ func (m InteractiveTaskList) View() string {
 			schedIn := time.Until(*task.ScheduledDate)
 			if schedIn < 24*time.Hour {
 				// Starts tomorrow - green
-				line += fmt.Sprintf(" \x1b[32m(starts tomorrow)\x1b[0m")
+				line += " \x1b[32m(starts tomorrow)\x1b[0m"
 			} else if schedIn < 7*24*time.Hour {
 				// Starts this week - dim green
 				line += fmt.Sprintf(" \x1b[92m(starts %s)\x1b[0m", task.ScheduledDate.Format("Mon"))
@@ -887,10 +888,10 @@ func (m InteractiveTaskList) View() string {
 				line += fmt.Sprintf(" \x1b[91m(overdue %s)\x1b[0m", task.DueDate.Format("01-02"))
 			} else if dueIn < 24*time.Hour {
 				// Due today - yellow
-				line += fmt.Sprintf(" \x1b[93m(due today)\x1b[0m")
+				line += " \x1b[93m(due today)\x1b[0m"
 			} else if dueIn < 48*time.Hour {
 				// Due tomorrow - light yellow
-				line += fmt.Sprintf(" \x1b[33m(due tomorrow)\x1b[0m")
+				line += " \x1b[33m(due tomorrow)\x1b[0m"
 			} else if dueIn < 7*24*time.Hour {
 				// Due this week - cyan
 				line += fmt.Sprintf(" \x1b[36m(due %s)\x1b[0m", task.DueDate.Format("Mon"))
@@ -961,9 +962,9 @@ func (m InteractiveTaskList) View() string {
 	} else if m.projectSelectMode {
 		// Show project selection UI
 		s.WriteString("\n\n📁 Select project filter:\n\n")
-		
+
 		projects := m.getAvailableProjects()
-		
+
 		// First option is "All tasks" with total count
 		cursor := "  "
 		if m.projectCursor == 0 {
@@ -971,24 +972,24 @@ func (m InteractiveTaskList) View() string {
 		}
 		allVisibleCount := len(FilterVisibleTasks(m.allTasks, m.showAll))
 		s.WriteString(fmt.Sprintf("%s[All tasks] (%d)\n", cursor, allVisibleCount))
-		
+
 		// Show each project with color and count
 		for i, project := range projects {
 			cursor := "  "
 			if i+1 == m.projectCursor {
 				cursor = "> "
 			}
-			
+
 			// Count tasks for this project
 			projectTasks := FilterTasksByProject(m.allTasks, project)
 			visibleProjectTasks := FilterVisibleTasks(projectTasks, m.showAll)
 			count := len(visibleProjectTasks)
-			
+
 			// Get project color
 			color := GetProjectColor(project)
 			s.WriteString(fmt.Sprintf("%s%s+%s\x1b[0m (%d)\n", cursor, color, project, count))
 		}
-		
+
 		s.WriteString("\n↑/k: up • ↓/j: down • Enter: select • Esc/q: cancel")
 	} else if m.confirmDelete {
 		s.WriteString("\n\n⚠️  Delete this task? (y/n)")

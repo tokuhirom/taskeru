@@ -188,12 +188,12 @@ func apiTasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
+	_ = json.NewEncoder(w).Encode(tasks)
 }
 
 func styleHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css")
-	w.Write([]byte(cssStyles))
+	_, _ = w.Write([]byte(cssStyles))
 }
 
 func groupTasksByStatus(tasks []internal.Task) map[string][]internal.Task {
@@ -278,7 +278,7 @@ func getAvailableMonths(tasks []internal.Task) []YearMonth {
 	var months []YearMonth
 	for key := range monthMap {
 		var year, month int
-		fmt.Sscanf(key, "%d-%d", &year, &month)
+		_, _ = fmt.Sscanf(key, "%d-%d", &year, &month)
 		months = append(months, YearMonth{Year: year, Month: month})
 	}
 

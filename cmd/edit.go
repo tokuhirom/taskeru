@@ -55,7 +55,7 @@ func editTaskNote(task *internal.Task) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() { _ = os.Remove(tempFile.Name()) }()
 
 	// Load configuration
 	config, _ := internal.LoadConfig()
@@ -85,10 +85,10 @@ func editTaskNote(task *internal.Task) error {
 
 	content := fmt.Sprintf("# %s\n\n%s", titleWithProjects, noteContent)
 	if _, err := tempFile.WriteString(content); err != nil {
-		tempFile.Close()
+		_ = tempFile.Close()
 		return err
 	}
-	tempFile.Close()
+	_ = tempFile.Close()
 
 	editor := os.Getenv("EDITOR")
 	if editor == "" {

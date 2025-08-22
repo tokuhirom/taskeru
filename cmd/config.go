@@ -3,18 +3,15 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"taskeru/internal"
 )
 
 func InitConfigCommand() error {
-	homeDir, err := os.UserHomeDir()
+	configPath, err := internal.UserConfigPath()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return fmt.Errorf("failed to get config path: %w", err)
 	}
-
-	configPath := filepath.Join(homeDir, ".config", "taskeru", "config.toml")
 
 	// Check if config already exists
 	if _, err := os.Stat(configPath); err == nil {
