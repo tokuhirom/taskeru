@@ -19,7 +19,7 @@
     {{range $date := .Dates}}
     {{$tasks := index $.TasksByDate $date}}
     <div class="daily-entry">
-        <h2 class="date-header">{{$date}}</h2>
+        <h2 class="date-header">{{formatDateWithWeekday $date}}</h2>
         <ul class="task-list">
         {{range $index, $task := $tasks}}
             <li class="task-list-item">

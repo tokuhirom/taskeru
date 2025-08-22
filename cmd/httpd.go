@@ -62,6 +62,16 @@ func init() {
 		"lower": func(s string) string {
 			return strings.ToLower(s)
 		},
+		"formatDateWithWeekday": func(dateStr string) string {
+			// Parse the date string (format: YYYY-MM-DD)
+			t, err := time.Parse("2006-01-02", dateStr)
+			if err != nil {
+				return dateStr // Return original if parsing fails
+			}
+			// Return formatted date with weekday
+			weekday := t.Format("Mon")
+			return fmt.Sprintf("%s (%s)", dateStr, weekday)
+		},
 	}
 
 	var err error
