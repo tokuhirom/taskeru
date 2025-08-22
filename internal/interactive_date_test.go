@@ -279,8 +279,11 @@ func TestDateEditModeView(t *testing.T) {
 	}
 
 	// Check help text
-	if !strings.Contains(view, "Format: today/tomorrow/monday/2024-12-31/12-25") {
+	if !strings.Contains(view, "Supported formats:") {
 		t.Error("Date edit mode should show format help")
+	}
+	if !strings.Contains(view, "Natural: next tuesday") {
+		t.Error("Date edit mode should show natural language format examples")
 	}
 
 	// Test scheduled date mode
