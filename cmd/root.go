@@ -52,8 +52,6 @@ func Execute() {
 		err = ListCommand(projectFilter)
 	case "edit", "e":
 		err = EditCommand()
-	case "kanban":
-		err = KanbanCommand()
 	case "httpd":
 		addr := ""
 		if len(nonFlagArgs) > 0 {
@@ -90,8 +88,7 @@ Commands:
   add <title>    Add a new task (supports +project, due:date, scheduled:date)
   ls, list       List all tasks (use -p to filter by project)
   edit, e        Edit a task interactively
-  kanban         Show tasks in kanban board view
-  httpd [addr]   Start HTTP server (default: 127.0.0.1:7676)
+  httpd [addr]   Start HTTP server for web UI (default: 127.0.0.1:7676)
   init-config    Create default configuration file
   help           Show this help message
 

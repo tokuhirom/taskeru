@@ -497,6 +497,11 @@ body {
 	color: #f57c00;
 }
 
+.date-badge.completed {
+	background: #e8f5e9;
+	color: #2e7d32;
+}
+
 .card-projects {
 	display: flex;
 	flex-wrap: wrap;

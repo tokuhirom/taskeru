@@ -10,13 +10,16 @@
                 <span class="card-priority">{{$task.Priority}}</span>
                 {{end}}
                 <div class="card-title">{{$task.Title}}</div>
-                {{if or $task.ScheduledDate $task.DueDate}}
+                {{if or $task.ScheduledDate $task.DueDate $task.CompletedAt}}
                 <div class="card-dates">
                     {{if $task.ScheduledDate}}
                     <span class="date-badge scheduled">📅 {{formatDate $task.ScheduledDate}}</span>
                     {{end}}
                     {{if $task.DueDate}}
                     <span class="date-badge deadline">⏰ {{formatDate $task.DueDate}}</span>
+                    {{end}}
+                    {{if and (eq $status "DONE") $task.CompletedAt}}
+                    <span class="date-badge completed">✅ {{formatDate $task.CompletedAt}}</span>
                     {{end}}
                 </div>
                 {{end}}
