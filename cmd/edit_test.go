@@ -63,11 +63,11 @@ func TestEditorCommandWithVim(t *testing.T) {
 			// Set the EDITOR environment variable
 			oldEditor := os.Getenv("EDITOR")
 			if tt.editorEnv != "" {
-				os.Setenv("EDITOR", tt.editorEnv)
+				_ = os.Setenv("EDITOR", tt.editorEnv)
 			} else {
-				os.Unsetenv("EDITOR")
+				_ = os.Unsetenv("EDITOR")
 			}
-			defer os.Setenv("EDITOR", oldEditor)
+			defer func() { _ = os.Setenv("EDITOR", oldEditor) }()
 
 			// Simulate the logic from edit.go
 			editor := os.Getenv("EDITOR")

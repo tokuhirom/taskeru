@@ -92,12 +92,12 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 			}
 
 			// Restore stdout
-			w.Close()
+			_ = w.Close()
 			os.Stdout = oldStdout
 
 			// Read captured output
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			_, _ = io.Copy(&buf, r)
 			output := buf.String()
 
 			// Check if expected tasks are in output
@@ -187,12 +187,12 @@ func TestListCommandWithCompletedTasksAndProjectFilter(t *testing.T) {
 	}
 
 	// Restore stdout
-	w.Close()
+	_ = w.Close()
 	os.Stdout = oldStdout
 
 	// Read captured output
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
 	// Should show active and recently completed work tasks, but not old completed ones

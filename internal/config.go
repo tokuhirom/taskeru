@@ -90,7 +90,7 @@ func SaveDefaultConfig() error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Write default config with comments
 	content := `# Taskeru Configuration File

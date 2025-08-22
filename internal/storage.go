@@ -56,7 +56,7 @@ func LoadTasks() ([]Task, error) {
 		}
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var tasks []Task
 	scanner := bufio.NewScanner(file)
@@ -100,8 +100,8 @@ func SaveTasks(tasks []Task) error {
 	tempPath := tempFile.Name()
 
 	defer func() {
-		tempFile.Close()
-		os.Remove(tempPath)
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
 	}()
 
 	writer := bufio.NewWriter(tempFile)
@@ -209,7 +209,7 @@ func SaveDeletedTasksToTrash(deletedTasks []Task) error {
 	existingTrash := []Task{}
 	file, err := os.Open(trashPath)
 	if err == nil {
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -241,8 +241,8 @@ func SaveDeletedTasksToTrash(deletedTasks []Task) error {
 	tempPath := tempFile.Name()
 
 	defer func() {
-		tempFile.Close()
-		os.Remove(tempPath)
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
 	}()
 
 	writer := bufio.NewWriter(tempFile)
