@@ -33,6 +33,8 @@ type InteractiveTaskList struct {
 	projectFilter     string // Filter tasks by project
 	projectSelectMode bool   // Mode for selecting project filter
 	projectCursor     int    // Cursor position in project list
+	width             int    // Terminal width
+	height            int    // Terminal height
 }
 
 func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
@@ -77,11 +79,68 @@ func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *Inter
 		projectFilter:     projectFilter,
 		projectSelectMode: false,
 		projectCursor:     0,
+		width:             80, // Default width
+		height:            24, // Default height
 	}
 }
 
 func (m InteractiveTaskList) Init() tea.Cmd {
 	return nil
+}
+
+// truncateTaskLine truncates the task line to fit within the terminal width
+// It prioritizes showing project names by truncating the title if necessary
+func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string, status string, priority string, title string, projects []string, additionalInfo string) string {
+	// Calculate base components length
+	baseLen := len(cursor) + len(status) + 1 + len(priority) + 1 // cursor + status + space + priority + space
+
+	// Calculate projects display length (including color codes, which we'll estimate)
+	projectsStr := ""
+	projectsDisplayLen := 0
+	for _, project := range projects {
+		projectsStr += fmt.Sprintf(" +%s", project)
+		projectsDisplayLen += len(project) + 2 // +project and space
+	}
+
+	// Calculate additional info length (dates, etc)
+	additionalDisplayLen := 0
+	if additionalInfo != "" {
+		// Remove ANSI codes for length calculation
+		strippedInfo := m.stripAnsiCodes(additionalInfo)
+		additionalDisplayLen = len(strippedInfo)
+	}
+
+	// Available width for title
+	availableWidth := m.width - baseLen - projectsDisplayLen - additionalDisplayLen - 5 // 5 for safety margin
+
+	// Truncate title if necessary
+	displayTitle := title
+	if availableWidth > 10 && len(title) > availableWidth { // Keep at least 10 chars for title
+		displayTitle = title[:availableWidth-3] + "..."
+	} else if availableWidth <= 10 && len(title) > 10 {
+		// If very limited space, show minimal title
+		displayTitle = title[:7] + "..."
+	}
+
+	return fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, displayTitle)
+}
+
+// stripAnsiCodes removes ANSI escape codes from a string
+func (m InteractiveTaskList) stripAnsiCodes(s string) string {
+	// Simple implementation - removes common ANSI codes
+	result := s
+	for {
+		start := strings.Index(result, "\x1b[")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "m")
+		if end == -1 {
+			break
+		}
+		result = result[:start] + result[start+end+1:]
+	}
+	return result
 }
 
 // applyFilters applies project filter and visibility filter to tasks
@@ -119,6 +178,12 @@ func (m *InteractiveTaskList) getAvailableProjects() []string {
 
 func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Update terminal dimensions
+		m.width = msg.Width
+		m.height = msg.Height
+		return m, nil
+
 	case tea.KeyMsg:
 		// Handle project select mode
 		if m.projectSelectMode {
@@ -850,56 +915,66 @@ func (m InteractiveTaskList) View() string {
 			}
 		}
 
-		line = fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, task.Title)
-
-		// Add projects with color
-		if len(task.Projects) > 0 {
-			for _, project := range task.Projects {
-				projectColor := GetProjectColor(project)
-				line += fmt.Sprintf(" %s+%s\x1b[0m", projectColor, project)
-			}
-		}
+		// Build additional info (dates)
+		additionalInfo := ""
 
 		// Add scheduled date if future
 		if task.IsFutureScheduled() {
 			schedIn := time.Until(*task.ScheduledDate)
 			if schedIn < 24*time.Hour {
 				// Starts tomorrow - green
-				line += " \x1b[32m(starts tomorrow)\x1b[0m"
+				additionalInfo += " \x1b[32m(starts tomorrow)\x1b[0m"
 			} else if schedIn < 7*24*time.Hour {
 				// Starts this week - dim green
-				line += fmt.Sprintf(" \x1b[92m(starts %s)\x1b[0m", task.ScheduledDate.Format("Mon"))
+				additionalInfo += fmt.Sprintf(" \x1b[92m(starts %s)\x1b[0m", task.ScheduledDate.Format("Mon"))
 			} else {
 				// Starts later - dim
-				line += fmt.Sprintf(" \x1b[90m(starts %s)\x1b[0m", task.ScheduledDate.Format("01-02"))
+				additionalInfo += fmt.Sprintf(" \x1b[90m(starts %s)\x1b[0m", task.ScheduledDate.Format("01-02"))
 			}
 		}
 
 		// Add completion date for done/wontdo tasks (dim gray)
 		if task.Status == StatusDONE || task.Status == StatusWONTDO {
 			if task.CompletedAt != nil {
-				line += fmt.Sprintf(" \x1b[90m(completed %s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
+				additionalInfo += fmt.Sprintf(" \x1b[90m(completed %s)\x1b[0m", task.CompletedAt.Format("2006-01-02"))
 			}
 		} else if task.DueDate != nil {
 			// Add due date with color based on urgency
 			dueIn := time.Until(*task.DueDate)
 			if dueIn < 0 {
 				// Overdue - red
-				line += fmt.Sprintf(" \x1b[91m(overdue %s)\x1b[0m", task.DueDate.Format("01-02"))
+				additionalInfo += fmt.Sprintf(" \x1b[91m(overdue %s)\x1b[0m", task.DueDate.Format("01-02"))
 			} else if dueIn < 24*time.Hour {
 				// Due today - yellow
-				line += " \x1b[93m(due today)\x1b[0m"
+				additionalInfo += " \x1b[93m(due today)\x1b[0m"
 			} else if dueIn < 48*time.Hour {
 				// Due tomorrow - light yellow
-				line += " \x1b[33m(due tomorrow)\x1b[0m"
+				additionalInfo += " \x1b[33m(due tomorrow)\x1b[0m"
 			} else if dueIn < 7*24*time.Hour {
 				// Due this week - cyan
-				line += fmt.Sprintf(" \x1b[36m(due %s)\x1b[0m", task.DueDate.Format("Mon"))
+				additionalInfo += fmt.Sprintf(" \x1b[36m(due %s)\x1b[0m", task.DueDate.Format("Mon"))
 			} else {
 				// Due later - dim
-				line += fmt.Sprintf(" \x1b[90m(due %s)\x1b[0m", task.DueDate.Format("01-02"))
+				additionalInfo += fmt.Sprintf(" \x1b[90m(due %s)\x1b[0m", task.DueDate.Format("01-02"))
 			}
 		}
+
+		// Build the complete line with truncation
+		// First build projects string with colors
+		projectsStr := ""
+		if len(task.Projects) > 0 {
+			for _, project := range task.Projects {
+				projectColor := GetProjectColor(project)
+				projectsStr += fmt.Sprintf(" %s+%s\x1b[0m", projectColor, project)
+			}
+		}
+
+		// Use truncate function to build the line with all components
+		line = m.truncateTaskLine(cursor, statusColor, status, priority, task.Title, task.Projects, additionalInfo)
+
+		// Add projects and additional info (already accounted for in truncation calculation)
+		line += projectsStr
+		line += additionalInfo
 		line += "\x1b[0m" // Always close the status color
 		line += "\n"
 		s.WriteString(line)
