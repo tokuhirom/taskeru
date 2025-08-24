@@ -11,10 +11,10 @@ test:
 	@echo "Running tests..."
 	@go test -v ./...
 
-# Format code using gofmt via golangci-lint
+# Format code using golangci-lint
 fmt:
 	@echo "Formatting code..."
-	@gofmt -w .
+	@golangci-lint fmt .
 
 # Run linter
 lint:
