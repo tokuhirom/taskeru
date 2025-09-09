@@ -20,7 +20,6 @@ type InteractiveTaskList struct {
 	showAll           bool
 	quit              bool
 	confirmDelete     bool
-	deletedTaskIDs    []string
 	inputMode         bool
 	inputBuffer       string
 	inputCursor       int // Cursor position in input buffer
@@ -50,7 +49,6 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 		modified:          false,
 		showAll:           false,
 		confirmDelete:     false,
-		deletedTaskIDs:    []string{},
 		inputMode:         false,
 		inputBuffer:       "",
 		inputCursor:       0,
@@ -698,27 +696,17 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.confirmDelete && m.cursor < len(m.tasks) {
 				// Mark task as deleted
 				taskID := m.tasks[m.cursor].ID
-				m.deletedTaskIDs = append(m.deletedTaskIDs, taskID)
 
-				// Remove from allTasks
-				newAllTasks := []Task{}
-				for _, t := range m.allTasks {
-					if t.ID != taskID {
-						newAllTasks = append(newAllTasks, t)
-					}
-				}
-				m.allTasks = newAllTasks
-
-				// Update filtered view
-				m.applyFilters()
-
-				// Adjust cursor if necessary
-				if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-					m.cursor = len(m.tasks) - 1
+				if err := m.taskFile.DeleteTask(taskID); err != nil {
+					m.err = fmt.Errorf("failed to delete task: %w", err)
+					m.confirmDelete = false
+					return m, tea.ClearScreen
 				}
 
-				m.modified = true
-				m.confirmDelete = false
+				if err := m.ReloadTasks(); err != nil {
+					m.err = fmt.Errorf("failed to reload tasks: %w", err)
+					return m, tea.ClearScreen
+				}
 			}
 
 		case "n":

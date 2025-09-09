@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -163,6 +164,71 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 	if info.Size() == 0 {
 		t.Errorf("Trash file is empty, should contain deleted tasks")
 	}
+}
+
+func TestDeleteTask(t *testing.T) {
+	taskFile := NewTaskFileForTesting(t)
+
+	// 2件のタスクを追加
+	tasks := []Task{
+		*NewTask("Delete me"),
+		*NewTask("Keep me"),
+	}
+	err := taskFile.AddTasks(tasks)
+	require.NoError(t, err)
+
+	// 1件目を削除
+	err = taskFile.DeleteTask(tasks[0].ID)
+	require.NoError(t, err)
+
+	// 残りのタスクが1件で、タイトルが"Keep me"
+	loaded, err := taskFile.LoadTasks()
+	require.NoError(t, err)
+	require.Equal(t, 1, len(loaded))
+	require.Equal(t, "Keep me", loaded[0].Title)
+
+	// ゴミ箱ファイルが存在し、削除タスクが含まれる
+	trashPath := taskFile.getTrashFilePath()
+	info, err := os.Stat(trashPath)
+	require.NoError(t, err)
+	require.True(t, info.Size() > 0)
+
+	// ゴミ箱内容を確認（ID一致）
+	f, err := os.Open(trashPath)
+	require.NoError(t, err)
+	_ = f.Close()
+	found := false
+	buf := make([]byte, info.Size())
+	f2, err := os.Open(trashPath)
+	require.NoError(t, err)
+	defer func() { _ = f2.Close() }()
+	_, err = f2.Read(buf)
+	require.NoError(t, err)
+	for _, line := range splitLines(string(buf)) {
+		var task Task
+		if err := json.Unmarshal([]byte(line), &task); err == nil {
+			if task.ID == tasks[0].ID {
+				found = true
+			}
+		}
+	}
+	require.True(t, found, "Deleted task should be in trash")
+}
+
+// splitLines is a helper for splitting file content into lines
+func splitLines(s string) []string {
+	var lines []string
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\n' {
+			lines = append(lines, s[start:i])
+			start = i + 1
+		}
+	}
+	if start < len(s) {
+		lines = append(lines, s[start:])
+	}
+	return lines
 }
 
 // Helper function

@@ -298,3 +298,42 @@ func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
 
 	return nil
 }
+
+func (tf *TaskFile) DeleteTask(taskID string) error {
+	lock, err := tf.lock()
+	if err != nil {
+		return fmt.Errorf("failed to lock task file: %w", err)
+	}
+	defer func() { _ = lock.Unlock() }()
+
+	tasks, err := tf.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+
+	var (
+		remaining []Task
+		deleted   []Task
+	)
+	for _, task := range tasks {
+		if task.ID == taskID {
+			deleted = append(deleted, task)
+		} else {
+			remaining = append(remaining, task)
+		}
+	}
+
+	if len(deleted) == 0 {
+		return fmt.Errorf("task with ID %s not found", taskID)
+	}
+
+	if err := tf.SaveDeletedTasksToTrash(deleted); err != nil {
+		return fmt.Errorf("failed to save deleted tasks to trash: %w", err)
+	}
+
+	if err := tf.saveTasks(remaining); err != nil {
+		return fmt.Errorf("failed to save tasks: %w", err)
+	}
+
+	return nil
+}
