@@ -4,37 +4,55 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
-// Global variable to store the task file path from -t option
-var taskFilePath string
-
-// SetTaskFilePath sets the global task file path (from -t option)
-func SetTaskFilePath(path string) {
-	taskFilePath = path
+type TaskFile struct {
+	Path string
 }
 
-func GetTaskFilePath() string {
-	// Priority: -t option > default
-	if taskFilePath != "" {
-		return filepath.Clean(taskFilePath)
+func NewTaskFileForTesting(t *testing.T) *TaskFile {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "todo.json")
+	return &TaskFile{
+		Path: filePath,
 	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "todo.json"
-	}
-	return filepath.Join(home, "todo.json")
 }
 
-func GetTrashFilePath() string {
-	// If -t option is used, put trash file in the same directory
-	if taskFilePath != "" {
-		dir := filepath.Dir(taskFilePath)
-		base := filepath.Base(taskFilePath)
+func NewTaskFileWithPath(path string) *TaskFile {
+	return &TaskFile{
+		Path: path,
+	}
+}
+
+func NewTaskFile() *TaskFile {
+	filePath := func() string {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			slog.Error("failed to get user home directory",
+				slog.Any("error", err))
+			// Fallback to the current directory
+			return "todo.json"
+		}
+		return filepath.Join(home, "todo.json")
+	}()
+
+	return &TaskFile{
+		Path: filePath,
+	}
+}
+
+func (tf *TaskFile) getTrashFilePath() string {
+	// We should not expose this method, right?
+	if tf.Path != "" {
+		dir := filepath.Dir(tf.Path)
+		base := filepath.Base(tf.Path)
 		ext := filepath.Ext(base)
 		name := base[:len(base)-len(ext)]
 		return filepath.Join(dir, name+".trash"+ext)
@@ -47,13 +65,18 @@ func GetTrashFilePath() string {
 	return filepath.Join(home, "trash.json")
 }
 
-func LoadTasks() ([]Task, error) {
-	filePath := GetTaskFilePath()
-	file, err := os.Open(filePath)
+func (tf *TaskFile) LoadTasks() ([]Task, error) {
+	file, err := os.Open(tf.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
+			slog.Info("No task file found, return empty tasks",
+				slog.String("Path", tf.Path))
 			return []Task{}, nil
 		}
+
+		slog.Info("Failed to open task file",
+			slog.String("Path", tf.Path),
+			slog.Any("error", err))
 		return nil, err
 	}
 	defer func() { _ = file.Close() }()
@@ -71,29 +94,25 @@ func LoadTasks() ([]Task, error) {
 
 		var task Task
 		if err := json.Unmarshal([]byte(line), &task); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Skipping invalid JSON at line %d: %v\n", lineNum, err)
+			slog.Error("Failed to unmarshal task",
+				slog.Int("line", lineNum),
+				slog.String("line_content", line),
+				slog.Any("error", err))
 			continue
-		}
-
-		// Migrate old data without Updated field
-		if task.Updated.IsZero() {
-			task.Updated = task.Created
 		}
 
 		tasks = append(tasks, task)
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tasks: %w", err)
 	}
 
 	return tasks, nil
 }
 
-func SaveTasks(tasks []Task) error {
-	filePath := GetTaskFilePath()
-
-	tempFile, err := os.CreateTemp(filepath.Dir(filePath), ".taskeru-*.tmp")
+func (tf *TaskFile) SaveTasks(tasks []Task) error {
+	tempFile, err := os.CreateTemp(filepath.Dir(tf.Path), ".taskeru-*.tmp")
 	if err != nil {
 		return err
 	}
@@ -130,48 +149,45 @@ func SaveTasks(tasks []Task) error {
 		return err
 	}
 
-	if err := os.Rename(tempPath, filePath); err != nil {
+	if err := os.Rename(tempPath, tf.Path); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func AddTask(task *Task) error {
-	tasks, err := LoadTasks()
+func (tf *TaskFile) lock() (*flock.Flock, error) {
+	lock := flock.New(tf.Path + ".lock")
+	if err := lock.Lock(); err != nil {
+		return nil, fmt.Errorf("failed to lock task file: %w", err)
+	}
+	return lock, nil
+}
+
+func (tf *TaskFile) AddTask(task *Task) error {
+	lock, err := tf.lock()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to lock task file: %w", err)
+	}
+	defer func() { _ = lock.Unlock() }()
+
+	tasks, err := tf.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
 	tasks = append(tasks, *task)
-	return SaveTasks(tasks)
+	return tf.SaveTasks(tasks)
 }
 
-func UpdateTask(taskID string, updateFunc func(*Task)) error {
-	tasks, err := LoadTasks()
+func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
+	lock, err := tf.lock()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to lock task file: %w", err)
 	}
+	defer func() { _ = lock.Unlock() }()
 
-	found := false
-	for i := range tasks {
-		if tasks[i].ID == taskID {
-			updateFunc(&tasks[i])
-			tasks[i].Updated = time.Now()
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("task with ID %s not found", taskID)
-	}
-
-	return SaveTasks(tasks)
-}
-
-func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
-	tasks, err := LoadTasks()
+	tasks, err := tf.LoadTasks()
 	if err != nil {
 		return err
 	}
@@ -194,16 +210,16 @@ func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updat
 		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
-	return SaveTasks(tasks)
+	return tf.SaveTasks(tasks)
 }
 
 // SaveDeletedTasksToTrash saves deleted tasks to trash.json
-func SaveDeletedTasksToTrash(deletedTasks []Task) error {
+func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
 	if len(deletedTasks) == 0 {
 		return nil
 	}
 
-	trashPath := GetTrashFilePath()
+	trashPath := tf.getTrashFilePath()
 
 	// Load existing trash tasks
 	existingTrash := []Task{}

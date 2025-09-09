@@ -10,9 +10,9 @@ import (
 
 func Execute() {
 	// Parse global flags first
-	var taskFile string
+	var taskFileName string
 	var projectFilter string
-	flag.StringVar(&taskFile, "t", "", "Path to task file")
+	flag.StringVar(&taskFileName, "t", "", "Path to task file")
 	flag.StringVar(&projectFilter, "p", "", "Filter tasks by project (for ls command)")
 
 	// Custom usage to handle our command structure
@@ -23,18 +23,21 @@ func Execute() {
 	// Parse all flags
 	flag.Parse()
 
-	// Set task file path if specified
-	if taskFile != "" {
-		internal.SetTaskFilePath(taskFile)
-	}
+	taskFile := func() *internal.TaskFile {
+		if taskFileName == "" {
+			return internal.NewTaskFile()
+		} else {
+			return internal.NewTaskFileWithPath(taskFileName)
+		}
+	}()
 
 	// Get command and remaining args
 	args := flag.Args()
 
 	if len(args) == 0 {
 		// No command, run interactive mode (with project filter if specified)
-		if err := InteractiveCommandWithFilter(projectFilter); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if err := InteractiveCommandWithFilter(projectFilter, taskFile); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 		return
@@ -47,29 +50,29 @@ func Execute() {
 
 	switch command {
 	case "add", "a":
-		err = AddCommand(nonFlagArgs)
+		err = AddCommand(taskFile, nonFlagArgs)
 	case "ls", "list", "l":
-		err = ListCommand(projectFilter)
+		err = ListCommand(taskFile, projectFilter)
 	case "edit", "e":
-		err = EditCommand()
+		err = EditCommand(taskFile)
 	case "httpd":
 		addr := ""
 		if len(nonFlagArgs) > 0 {
 			addr = nonFlagArgs[0]
 		}
-		err = HttpdCommand(addr)
+		err = HttpdCommand(taskFile, addr)
 	case "init-config":
 		err = InitConfigCommand()
 	case "help", "-h", "--help":
 		showHelp()
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
+		_, _ = fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		showHelp()
 		os.Exit(1)
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

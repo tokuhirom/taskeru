@@ -11,6 +11,10 @@ test:
 	@echo "Running tests..."
 	@go test -v ./...
 
+# Clean build artifacts
+clean:
+	rm -f taskeru
+
 # Format code using golangci-lint
 fmt:
 	@echo "Formatting code..."

@@ -11,8 +11,8 @@ import (
 	"taskeru/internal"
 )
 
-func EditCommand() error {
-	tasks, err := internal.LoadTasks()
+func EditCommand(taskFile *internal.TaskFile) error {
+	tasks, err := taskFile.LoadTasks()
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
@@ -35,7 +35,7 @@ func EditCommand() error {
 		return fmt.Errorf("failed to edit task: %w", err)
 	}
 
-	if err := internal.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
+	if err := taskFile.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
 		t.Title = task.Title
 		t.Projects = task.Projects
 		t.Note = task.Note

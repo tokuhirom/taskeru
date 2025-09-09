@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"regexp"
 	"strings"
 	"time"
 
@@ -128,102 +127,11 @@ func parseTraditionalDate(dateStr string) (*time.Time, error) {
 	return nil, nil
 }
 
-// ExtractDeadlineFromTitleV2 extracts deadline with enhanced natural language support
-func ExtractDeadlineFromTitleV2(title string) (string, *time.Time) {
-	// First try the enhanced multi-word pattern for natural language dates
-	// Match everything after due: until we hit scheduled: or a project tag or end of string
-	naturalRegex := regexp.MustCompile(`\s+due:([^+]+?)(\s+(?:due:|scheduled:|\+)|$)`)
-	match := naturalRegex.FindStringSubmatch(title)
-
-	if match != nil {
-		dateStr := strings.TrimSpace(match[1])
-		deadline, _ := ParseNaturalDate(dateStr)
-
-		if deadline != nil {
-			// Remove the matched part from title, but preserve project tags
-			// If match[2] contains project tag, we need to preserve it
-			replacement := ""
-			if strings.TrimSpace(match[2]) != "" {
-				replacement = match[2] // Keep the project tag part
-			}
-			cleanTitle := naturalRegex.ReplaceAllString(title, replacement)
-			cleanTitle = strings.TrimSpace(cleanTitle)
-			// Clean up any double spaces
-			cleanTitle = regexp.MustCompile(`\s+`).ReplaceAllString(cleanTitle, " ")
-			return cleanTitle, deadline
-		}
+// nextWeekday returns the next occurrence of the given weekday
+func nextWeekday(from time.Time, weekday time.Weekday) time.Time {
+	days := int(weekday - from.Weekday())
+	if days <= 0 {
+		days += 7
 	}
-
-	// Fallback to single-word pattern for backward compatibility
-	simpleRegex := regexp.MustCompile(`\s+due:(\S+)`)
-	match = simpleRegex.FindStringSubmatch(title)
-	if match == nil {
-		return title, nil
-	}
-
-	dateStr := match[1]
-	deadline, _ := ParseNaturalDate(dateStr)
-
-	if deadline == nil {
-		return title, nil
-	}
-
-	// Remove the due:date part from title
-	cleanTitle := simpleRegex.ReplaceAllString(title, "")
-	cleanTitle = strings.TrimSpace(cleanTitle)
-
-	return cleanTitle, deadline
-}
-
-// ExtractScheduledDateFromTitleV2 extracts scheduled date with enhanced natural language support
-func ExtractScheduledDateFromTitleV2(title string) (string, *time.Time) {
-	// First try the enhanced multi-word pattern for natural language dates
-	// Match everything after scheduled: or sched: until we hit due: or a project tag or end of string
-	naturalRegex := regexp.MustCompile(`\s+(scheduled|sched):([^+]+?)(\s+(?:due:|scheduled:|sched:|\+)|$)`)
-	match := naturalRegex.FindStringSubmatch(title)
-
-	if match != nil {
-		dateStr := strings.TrimSpace(match[2]) // match[1] is "scheduled" or "sched", match[2] is the date
-		scheduled, _ := ParseNaturalDate(dateStr)
-
-		if scheduled != nil {
-			// For scheduled dates, set to start of day
-			startOfDay := time.Date(scheduled.Year(), scheduled.Month(), scheduled.Day(), 0, 0, 0, 0, scheduled.Location())
-
-			// Remove the matched part from title, but preserve project tags
-			// If match[3] contains project tag, we need to preserve it
-			replacement := ""
-			if strings.TrimSpace(match[3]) != "" {
-				replacement = match[3] // Keep the project tag part
-			}
-			cleanTitle := naturalRegex.ReplaceAllString(title, replacement)
-			cleanTitle = strings.TrimSpace(cleanTitle)
-			// Clean up any double spaces
-			cleanTitle = regexp.MustCompile(`\s+`).ReplaceAllString(cleanTitle, " ")
-			return cleanTitle, &startOfDay
-		}
-	}
-
-	// Fallback to single-word pattern for backward compatibility
-	simpleRegex := regexp.MustCompile(`\s+(scheduled|sched):(\S+)`)
-	match = simpleRegex.FindStringSubmatch(title)
-	if match == nil {
-		return title, nil
-	}
-
-	dateStr := match[2] // match[1] is "scheduled" or "sched", match[2] is the date
-	scheduled, _ := ParseNaturalDate(dateStr)
-
-	if scheduled == nil {
-		return title, nil
-	}
-
-	// For scheduled dates, set to start of day
-	startOfDay := time.Date(scheduled.Year(), scheduled.Month(), scheduled.Day(), 0, 0, 0, 0, scheduled.Location())
-
-	// Remove the scheduled:date part from title
-	cleanTitle := simpleRegex.ReplaceAllString(title, "")
-	cleanTitle = strings.TrimSpace(cleanTitle)
-
-	return cleanTitle, &startOfDay
+	return from.AddDate(0, 0, days)
 }

@@ -10,13 +10,9 @@ import (
 	"taskeru/internal"
 )
 
-func InteractiveCommand() error {
-	return InteractiveCommandWithFilter("")
-}
-
-func InteractiveCommandWithFilter(projectFilter string) error {
+func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskFile) error {
 	for {
-		tasks, err := internal.LoadTasks()
+		tasks, err := taskFile.LoadTasks()
 		if err != nil {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
@@ -45,7 +41,7 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 					}
 				}
 
-				if err := internal.SaveTasks(updatedTasks); err != nil {
+				if err := taskFile.SaveTasks(updatedTasks); err != nil {
 					return fmt.Errorf("failed to save tasks: %w", err)
 				}
 			}
@@ -67,7 +63,7 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 			}
 
 			// Save to trash
-			if err := internal.SaveDeletedTasksToTrash(deletedTasks); err != nil {
+			if err := taskFile.SaveDeletedTasksToTrash(deletedTasks); err != nil {
 				fmt.Printf("Warning: failed to save to trash: %v\n", err)
 			}
 
@@ -87,7 +83,7 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 			newTask.ScheduledDate = scheduledDate
 			newTask.DueDate = dueDate
 
-			if err := internal.AddTask(newTask); err != nil {
+			if err := taskFile.AddTask(newTask); err != nil {
 				return fmt.Errorf("failed to create task: %w", err)
 			}
 
@@ -117,7 +113,7 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 			}
 
 			// Update the task with conflict check
-			if err := internal.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
+			if err := taskFile.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
 				t.Title = taskToEdit.Title
 				t.Projects = taskToEdit.Projects
 				t.Note = taskToEdit.Note
@@ -151,7 +147,7 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 				}
 			}
 
-			if err := internal.SaveTasks(updatedTasks); err != nil {
+			if err := taskFile.SaveTasks(updatedTasks); err != nil {
 				return fmt.Errorf("failed to save tasks: %w", err)
 			}
 
