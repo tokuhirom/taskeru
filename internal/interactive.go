@@ -11,6 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 type InteractiveTaskList struct {
@@ -147,10 +148,10 @@ func (m *InteractiveTaskList) truncateTaskLine(cursor string, statusColor string
 	// Truncate title if necessary
 	displayTitle := title
 	if availableWidth > 10 && len(title) > availableWidth { // Keep at least 10 chars for title
-		displayTitle = title[:availableWidth-3] + "..."
+		displayTitle = runewidth.Truncate(title, availableWidth-3, "...")
 	} else if availableWidth <= 10 && len(title) > 10 {
 		// If very limited space, show minimal title
-		displayTitle = title[:7] + "..."
+		displayTitle = runewidth.Truncate(title, 7, "...")
 	}
 
 	return fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, displayTitle)
