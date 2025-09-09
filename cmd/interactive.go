@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"taskeru/internal"
@@ -31,7 +30,6 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 		//updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, err := internal.ShowInteractiveTaskListWithFilter(tasks, projectFilter)
 		var updatedTasks []internal.Task
 		var modified bool
-		var taskToEdit *internal.Task
 		var deletedTaskIDs []string
 
 		// Handle task deletion
@@ -54,35 +52,6 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 
 			// Mark as modified to trigger save
 			modified = true
-		}
-
-		// Handle edit task
-		if taskToEdit != nil {
-			// Remember the original updated time for conflict detection
-			originalUpdated := taskToEdit.Updated
-
-			// Open editor
-			//if err := editTaskNoteInteractive(taskToEdit); err != nil {
-			//	fmt.Printf("Editor error: %v\n", err)
-			//	continue
-			//}
-
-			// Update the task with conflict check
-			if err := taskFile.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
-				t.Title = taskToEdit.Title
-				t.Projects = taskToEdit.Projects
-				t.Note = taskToEdit.Note
-			}); err != nil {
-				if strings.Contains(err.Error(), "modified by another process") {
-					fmt.Println("Conflict: task was modified by another process, please try again")
-				} else {
-					fmt.Printf("Failed to save task: %v\n", err)
-				}
-				continue
-			}
-
-			fmt.Printf("Task updated: %s\n", taskToEdit.Title)
-			continue // Go back to the list after editing
 		}
 
 		// Save modifications and exit
