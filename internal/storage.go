@@ -7,27 +7,37 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/gofrs/flock"
 )
 
-// Global variable to store the task file path from -t option
+// Global variable to store the task file Path from -t option
 var taskFilePath string
 
-// SetTaskFilePath sets the global task file path (from -t option)
+// SetTaskFilePath sets the global task file Path (from -t option)
 func SetTaskFilePath(path string) {
 	taskFilePath = path
 }
 
 type TaskFile struct {
-	path string
+	Path string
+}
+
+func NewTaskFileForTesting(t *testing.T) *TaskFile {
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "todo.json")
+	SetTaskFilePath(filePath) // TODO: TEMPORARY HACK. I'll remove this later.
+	return &TaskFile{
+		Path: filePath,
+	}
 }
 
 func OpenTaskFile() *TaskFile {
 	filePath := GetTaskFilePath()
 	return &TaskFile{
-		path: filePath,
+		Path: filePath,
 	}
 }
 
@@ -75,12 +85,12 @@ func (tf *TaskFile) LoadTasks() ([]Task, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			slog.Info("No task file found, return empty tasks",
-				slog.String("path", filePath))
+				slog.String("Path", filePath))
 			return []Task{}, nil
 		}
 
 		slog.Info("Failed to open task file",
-			slog.String("path", filePath),
+			slog.String("Path", filePath),
 			slog.Any("error", err))
 		return nil, err
 	}
@@ -117,7 +127,7 @@ func (tf *TaskFile) LoadTasks() ([]Task, error) {
 }
 
 func (tf *TaskFile) SaveTasks(tasks []Task) error {
-	tempFile, err := os.CreateTemp(filepath.Dir(tf.path), ".taskeru-*.tmp")
+	tempFile, err := os.CreateTemp(filepath.Dir(tf.Path), ".taskeru-*.tmp")
 	if err != nil {
 		return err
 	}
@@ -154,7 +164,7 @@ func (tf *TaskFile) SaveTasks(tasks []Task) error {
 		return err
 	}
 
-	if err := os.Rename(tempPath, tf.path); err != nil {
+	if err := os.Rename(tempPath, tf.Path); err != nil {
 		return err
 	}
 
@@ -167,7 +177,7 @@ func SaveTasks(tasks []Task) error {
 }
 
 func (tf *TaskFile) lock() (*flock.Flock, error) {
-	lock := flock.New(tf.path + ".lock")
+	lock := flock.New(tf.Path + ".lock")
 	if err := lock.Lock(); err != nil {
 		return nil, fmt.Errorf("failed to lock task file: %w", err)
 	}
@@ -190,20 +200,8 @@ func (tf *TaskFile) AddTask(task *Task) error {
 	return tf.SaveTasks(tasks)
 }
 
-// Deprecated: use TaskFile.AddTask instead
-func AddTask(task *Task) error {
-	tf := OpenTaskFile()
-	tasks, err := tf.LoadTasks()
-	if err != nil {
-		return fmt.Errorf("failed to load tasks: %w", err)
-	}
-
-	tasks = append(tasks, *task)
-	return tf.SaveTasks(tasks)
-}
-
-func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
-	tasks, err := LoadTasks()
+func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task), taskFile *TaskFile) error {
+	tasks, err := taskFile.LoadTasks()
 	if err != nil {
 		return err
 	}

@@ -39,7 +39,7 @@ func EditCommand(taskFile *internal.TaskFile) error {
 		t.Title = task.Title
 		t.Projects = task.Projects
 		t.Note = task.Note
-	}); err != nil {
+	}, taskFile); err != nil {
 		if strings.Contains(err.Error(), "modified by another process") {
 			return fmt.Errorf("conflict: task was modified by another process, please try again")
 		}

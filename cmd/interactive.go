@@ -117,7 +117,7 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 				t.Title = taskToEdit.Title
 				t.Projects = taskToEdit.Projects
 				t.Note = taskToEdit.Note
-			}); err != nil {
+			}, taskFile); err != nil {
 				if strings.Contains(err.Error(), "modified by another process") {
 					fmt.Println("Conflict: task was modified by another process, please try again")
 				} else {

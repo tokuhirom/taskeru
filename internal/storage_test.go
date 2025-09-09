@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetTaskFilePath(t *testing.T) {
@@ -20,17 +22,17 @@ func TestGetTaskFilePath(t *testing.T) {
 		wantContains string
 	}{
 		{
-			name:         "default path when not set",
+			name:         "default Path when not set",
 			setPath:      "",
 			wantContains: "todo.json",
 		},
 		{
-			name:    "uses -t option path when set",
+			name:    "uses -t option Path when set",
 			setPath: "/tmp/test.json",
 			want:    "/tmp/test.json",
 		},
 		{
-			name:    "cleans the path",
+			name:    "cleans the Path",
 			setPath: "/tmp/../tmp/test.json",
 			want:    "/tmp/test.json",
 		},
@@ -70,7 +72,7 @@ func TestGetTrashFilePath(t *testing.T) {
 		wantContains string
 	}{
 		{
-			name:         "default trash path when not set",
+			name:         "default trash Path when not set",
 			setPath:      "",
 			wantContains: "trash.json",
 		},
@@ -107,16 +109,7 @@ func TestGetTrashFilePath(t *testing.T) {
 }
 
 func TestSaveAndLoadTasks(t *testing.T) {
-	// Use temporary directory for test files
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test_tasks.json")
-
-	// Set the test file path
-	originalPath := taskFilePath
-	defer func() {
-		taskFilePath = originalPath
-	}()
-	SetTaskFilePath(testFile)
+	taskFile := NewTaskFileForTesting(t)
 
 	// Create test tasks
 	tasks := []Task{
@@ -129,21 +122,19 @@ func TestSaveAndLoadTasks(t *testing.T) {
 	tasks[1].SetStatus(StatusDONE)
 
 	// Save tasks
-	err := SaveTasks(tasks)
+	err := taskFile.SaveTasks(tasks)
 	if err != nil {
 		t.Fatalf("SaveTasks() error = %v", err)
 	}
 
 	// Check file exists
-	if _, err := os.Stat(testFile); os.IsNotExist(err) {
-		t.Fatalf("Task file was not created: %v", testFile)
+	if _, err := os.Stat(taskFile.Path); os.IsNotExist(err) {
+		t.Fatalf("Task file was not created: %v", taskFile.Path)
 	}
 
 	// Load tasks back
-	loadedTasks, err := LoadTasks()
-	if err != nil {
-		t.Fatalf("LoadTasks() error = %v", err)
-	}
+	loadedTasks, err := taskFile.LoadTasks()
+	require.NoError(t, err, "LoadTasks()")
 
 	// Verify tasks
 	if len(loadedTasks) != len(tasks) {
@@ -165,49 +156,31 @@ func TestSaveAndLoadTasks(t *testing.T) {
 
 func TestLoadTasksWithInvalidJSON(t *testing.T) {
 	// Use temporary directory for test files
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "invalid_tasks.json")
+	taskFile := NewTaskFileForTesting(t)
 
-	// Set the test file path
-	originalPath := taskFilePath
-	defer func() {
-		taskFilePath = originalPath
-	}()
-	SetTaskFilePath(testFile)
+	// Set the test file Path
 
 	// Create file with mixed valid and invalid JSON
 	content := `{"id":"1","title":"Valid task","status":"TODO"}
 invalid json line
 {"id":"2","title":"Another valid task","status":"TODO"}
 `
-	err := os.WriteFile(testFile, []byte(content), 0644)
+	err := os.WriteFile(taskFile.Path, []byte(content), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	// Load tasks - should skip invalid lines
-	tasks, err := LoadTasks()
-	if err != nil {
-		t.Fatalf("LoadTasks() error = %v, want nil (should skip invalid lines)", err)
-	}
+	tasks, err := taskFile.LoadTasks()
+	require.NoError(t, err, "LoadTasks()")
 
 	// Should load only valid tasks
-	if len(tasks) != 2 {
-		t.Errorf("LoadTasks() returned %d tasks, want 2 (should skip invalid line)", len(tasks))
-	}
+	require.Equal(t, 2, len(tasks))
 }
 
 func TestSaveDeletedTasksToTrash(t *testing.T) {
-	// Use temporary directory for test files
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "tasks.json")
-
-	// Set the test file path
-	originalPath := taskFilePath
-	defer func() {
-		taskFilePath = originalPath
-	}()
-	SetTaskFilePath(testFile)
+	taskFile := NewTaskFileForTesting(t)
+	t.Logf("Task file: %s", taskFile.Path)
 
 	// Create deleted tasks
 	deletedTasks := []Task{
@@ -237,7 +210,7 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 		t.Fatalf("SaveDeletedTasksToTrash() second call error = %v", err)
 	}
 
-	// Verify trash file contains all deleted tasks
+	// Verify a trash file contains all deleted tasks
 	// Note: We can't easily verify the contents without exposing a load function for trash,
 	// but we can at least verify the file exists and grows
 	info, err := os.Stat(trashFile)
