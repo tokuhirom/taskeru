@@ -134,3 +134,151 @@ func TestCombinedNaturalLanguageDateExtraction(t *testing.T) {
 		t.Errorf("Expected projects [work, urgent], got %v", projects)
 	}
 }
+
+func TestExtractDeadlineFromTitleWithNaturalLanguage(t *testing.T) {
+	tests := []struct {
+		input         string
+		expectedTitle string
+		hasDeadline   bool
+		description   string
+	}{
+		// Natural language dates
+		{
+			input:         "Finish report due:next tuesday",
+			expectedTitle: "Finish report",
+			hasDeadline:   true,
+			description:   "Should extract 'next tuesday' deadline",
+		},
+		{
+			input:         "Review PR due:in 2 days +work",
+			expectedTitle: "Review PR +work",
+			hasDeadline:   true,
+			description:   "Should extract 'in 2 days' with project tag",
+		},
+		{
+			input:         "Meeting prep due:tomorrow at 3pm +urgent",
+			expectedTitle: "Meeting prep +urgent",
+			hasDeadline:   true,
+			description:   "Should extract 'tomorrow at 3pm' with project",
+		},
+		{
+			input:         "Task due:next friday +project1 +project2",
+			expectedTitle: "Task +project1 +project2",
+			hasDeadline:   true,
+			description:   "Should handle natural date with multiple projects",
+		},
+
+		// Traditional formats (backward compatibility)
+		{
+			input:         "Buy groceries due:today",
+			expectedTitle: "Buy groceries",
+			hasDeadline:   true,
+			description:   "Should still work with simple 'today'",
+		},
+		{
+			input:         "Write report due:2024-12-31",
+			expectedTitle: "Write report",
+			hasDeadline:   true,
+			description:   "Should still work with ISO date",
+		},
+		{
+			input:         "Task without deadline",
+			expectedTitle: "Task without deadline",
+			hasDeadline:   false,
+			description:   "Should return unchanged when no deadline",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			cleanTitle, deadline := ExtractDeadlineFromTitle(tt.input)
+
+			if cleanTitle != tt.expectedTitle {
+				t.Errorf("Expected title %q, got %q", tt.expectedTitle, cleanTitle)
+			}
+
+			if tt.hasDeadline && deadline == nil {
+				t.Error("Expected deadline to be extracted, but got nil")
+			}
+
+			if !tt.hasDeadline && deadline != nil {
+				t.Errorf("Expected no deadline, but got %v", deadline)
+			}
+		})
+	}
+}
+
+func TestExtractScheduledDateFromTitleWithNaturalLanguage(t *testing.T) {
+	tests := []struct {
+		input         string
+		expectedTitle string
+		hasScheduled  bool
+		description   string
+	}{
+		// Natural language dates
+		{
+			input:         "Start project scheduled:next monday",
+			expectedTitle: "Start project",
+			hasScheduled:  true,
+			description:   "Should extract 'next monday' scheduled date",
+		},
+		{
+			input:         "Begin work scheduled:in 1 week +important",
+			expectedTitle: "Begin work +important",
+			hasScheduled:  true,
+			description:   "Should extract 'in 1 week' with project tag",
+		},
+		{
+			input:         "Task scheduled:next month +work +planning",
+			expectedTitle: "Task +work +planning",
+			hasScheduled:  true,
+			description:   "Should handle natural date with multiple projects",
+		},
+
+		// Traditional formats
+		{
+			input:         "Task scheduled:tomorrow",
+			expectedTitle: "Task",
+			hasScheduled:  true,
+			description:   "Should work with simple 'tomorrow'",
+		},
+		{
+			input:         "Task scheduled:2025-01-15",
+			expectedTitle: "Task",
+			hasScheduled:  true,
+			description:   "Should work with ISO date",
+		},
+		{
+			input:         "Task without scheduled date",
+			expectedTitle: "Task without scheduled date",
+			hasScheduled:  false,
+			description:   "Should return unchanged when no scheduled date",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			cleanTitle, scheduled := ExtractScheduledDateFromTitle(tt.input)
+
+			if cleanTitle != tt.expectedTitle {
+				t.Errorf("Expected title %q, got %q", tt.expectedTitle, cleanTitle)
+			}
+
+			if tt.hasScheduled && scheduled == nil {
+				t.Error("Expected scheduled date to be extracted, but got nil")
+			}
+
+			if !tt.hasScheduled && scheduled != nil {
+				t.Errorf("Expected no scheduled date, but got %v", scheduled)
+			}
+
+			// Verify scheduled dates are set to start of day
+			if scheduled != nil {
+				hour := scheduled.Hour()
+				if hour != 0 {
+					t.Errorf("Expected hour to be 0 (start of day) for scheduled date, got %d", hour)
+				}
+			}
+		})
+	}
+}
