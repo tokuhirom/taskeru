@@ -16,7 +16,7 @@ func TestSearchNavigation(t *testing.T) {
 		*NewTask("Final task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter search mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
@@ -96,7 +96,7 @@ func TestSearchNavigationWithNoMatches(t *testing.T) {
 		*NewTask("Task 3"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter search mode and search for non-existent term
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})

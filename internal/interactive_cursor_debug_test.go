@@ -19,7 +19,7 @@ func TestDebugCursorBehavior(t *testing.T) {
 		tasks[i].Status = StatusTODO
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	t.Logf("Initial state: cursor=%d, tasks=%d", model.cursor, len(model.tasks))
 	for i, task := range model.tasks {
@@ -60,7 +60,7 @@ func TestDebugStatusCycle(t *testing.T) {
 		tasks[i].Status = StatusTODO
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Move cursor to Task 2 (index 1)
 	model.cursor = 1

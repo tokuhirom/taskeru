@@ -20,7 +20,7 @@ func TestDetailedStatusCycle(t *testing.T) {
 		tasks[i].Priority = "medium"
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Move cursor to Task 2 (index 1)
 	model.cursor = 1

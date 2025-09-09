@@ -61,7 +61,7 @@ func TestTruncateTaskLine(t *testing.T) {
 			task.Projects = tt.projects
 			task.Status = StatusTODO
 
-			model := NewInteractiveTaskList([]Task{*task})
+			model := NewInteractiveTaskListWithFilter([]Task{*task}, "")
 			model.width = tt.width
 
 			// Simulate the truncation
@@ -93,7 +93,7 @@ func TestTruncateTaskLine(t *testing.T) {
 
 func TestWindowSizeUpdate(t *testing.T) {
 	task := NewTask("Test task")
-	model := NewInteractiveTaskList([]Task{*task})
+	model := NewInteractiveTaskListWithFilter([]Task{*task}, "")
 
 	// Initial dimensions should be defaults
 	if model.width != 80 || model.height != 24 {
@@ -113,7 +113,7 @@ func TestWindowSizeUpdate(t *testing.T) {
 }
 
 func TestStripAnsiCodes(t *testing.T) {
-	model := NewInteractiveTaskList([]Task{})
+	model := NewInteractiveTaskListWithFilter([]Task{}, "")
 
 	tests := []struct {
 		input    string

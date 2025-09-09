@@ -25,7 +25,7 @@ func TestSpaceKeyBehavior(t *testing.T) {
 	tasks[1].Status = StatusDONE
 	tasks[1].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	t.Logf("Initial state:")
 	t.Logf("  All tasks count: %d", len(model.allTasks))

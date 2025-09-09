@@ -22,7 +22,7 @@ func TestSearchMode(t *testing.T) {
 	tasks[2].Projects = []string{"work", "urgent"}
 	tasks[2].Note = "Review pull request"
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Test entering search mode with /
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
@@ -89,7 +89,7 @@ func TestSearchHighlighting(t *testing.T) {
 	tasks[3].Note = "Critical bug in production"
 	tasks[4].Projects = []string{"meetings"}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	tests := []struct {
 		query         string
@@ -122,7 +122,7 @@ func TestSearchCaseSensitivity(t *testing.T) {
 		*NewTask("Something else"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Search should be case-insensitive
 	queries := []string{"important", "IMPORTANT", "Important", "iMpOrTaNt"}
@@ -142,7 +142,7 @@ func TestSearchModeView(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 	model.searchMode = true
 	model.searchQuery = "test"
 	model.searchCursor = 2

@@ -37,10 +37,6 @@ type InteractiveTaskList struct {
 	height            int    // Terminal height
 }
 
-func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
-	return NewInteractiveTaskListWithFilter(tasks, "")
-}
-
 func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *InteractiveTaskList {
 	// Sort tasks before displaying
 	SortTasks(tasks)

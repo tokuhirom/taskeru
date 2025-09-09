@@ -23,7 +23,7 @@ func TestDateEditMode(t *testing.T) {
 	scheduled := time.Now().AddDate(0, 0, 3) // 3 days from now
 	tasks[2].ScheduledDate = &scheduled
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Test entering deadline edit mode with D
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -70,7 +70,7 @@ func TestDateEditWithExistingDates(t *testing.T) {
 	scheduled := time.Date(2025, 12, 25, 0, 0, 0, 0, time.Local)
 	tasks[0].ScheduledDate = &scheduled
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Test D key pre-fills existing deadline
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -101,7 +101,7 @@ func TestDateEditInput(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -146,7 +146,7 @@ func TestDateEditApply(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -188,7 +188,7 @@ func TestScheduledDateEditApply(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter scheduled date edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
@@ -230,7 +230,7 @@ func TestDateEditClearDate(t *testing.T) {
 	deadline := time.Now().AddDate(0, 0, 7)
 	tasks[0].DueDate = &deadline
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -261,7 +261,7 @@ func TestDateEditModeView(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 	model.dateEditMode = "deadline"
 	model.dateEditBuffer = "2025-12-31"
 	model.dateEditCursor = 5 // Position after "2025-"
@@ -300,7 +300,7 @@ func TestDateEditDoesNotTriggerDuringDelete(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter delete confirmation mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})

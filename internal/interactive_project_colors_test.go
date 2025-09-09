@@ -26,7 +26,7 @@ func TestProjectSelectionColors(t *testing.T) {
 	tasks[5].Projects = []string{"work", "urgent"}
 
 	// Create interactive model
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter project select mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
@@ -90,7 +90,7 @@ func TestProjectSelectionWithHiddenTasks(t *testing.T) {
 	tasks[2].Status = StatusTODO
 
 	// Create interactive model
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Enter project select mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})

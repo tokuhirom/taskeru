@@ -24,7 +24,7 @@ func TestProjectSelectionMode(t *testing.T) {
 	// tasks[4] has no projects
 
 	// Create interactive model
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Test entering project select mode with 'p'
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})

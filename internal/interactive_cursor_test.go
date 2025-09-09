@@ -32,7 +32,7 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	tasks[1].Status = StatusDONE
 	tasks[1].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Should only see 2 tasks (Task 1 and Task 3)
 	if len(model.tasks) != 2 {
@@ -112,7 +112,7 @@ func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
 	tasks[2].Status = StatusDONE
 	tasks[2].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Should see 3 visible tasks initially
 	if len(model.tasks) != 3 {
@@ -155,7 +155,7 @@ func TestCursorFollowsTaskWhenStatusChangesButStaysVisible(t *testing.T) {
 	tasks[2].Priority = "low"
 	tasks[2].Status = StatusTODO
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 	model.showAll = true // Ensure all tasks stay visible
 
 	// Find the "Normal task" position
@@ -204,7 +204,7 @@ func TestMultipleStatusChangesKeepCursorStable(t *testing.T) {
 		tasks[i].Status = StatusTODO
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 
 	// Move to Task B (index 1)
 	model.cursor = 1

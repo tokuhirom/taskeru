@@ -19,7 +19,7 @@ func TestInteractiveWithProjectFilter(t *testing.T) {
 	// tasks[3] has no projects
 
 	// Test without filter
-	model := NewInteractiveTaskList(tasks)
+	model := NewInteractiveTaskListWithFilter(tasks, "")
 	if len(model.tasks) != 4 {
 		t.Errorf("Without filter, should have 4 tasks, got %d", len(model.tasks))
 	}
@@ -108,7 +108,7 @@ func TestProjectFilterTitle(t *testing.T) {
 	}
 
 	// Test without filter
-	modelNoFilter := NewInteractiveTaskList(tasks)
+	modelNoFilter := NewInteractiveTaskListWithFilter(tasks, "")
 	viewNoFilter := modelNoFilter.View()
 
 	if containsStr(viewNoFilter, "Tasks for project:") {
