@@ -35,11 +35,11 @@ func EditCommand(taskFile *internal.TaskFile) error {
 		return fmt.Errorf("failed to edit task: %w", err)
 	}
 
-	if err := internal.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
+	if err := taskFile.UpdateTaskWithConflictCheck(task.ID, originalUpdated, func(t *internal.Task) {
 		t.Title = task.Title
 		t.Projects = task.Projects
 		t.Note = task.Note
-	}, taskFile); err != nil {
+	}); err != nil {
 		if strings.Contains(err.Error(), "modified by another process") {
 			return fmt.Errorf("conflict: task was modified by another process, please try again")
 		}

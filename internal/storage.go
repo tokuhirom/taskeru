@@ -198,8 +198,14 @@ func (tf *TaskFile) AddTask(task *Task) error {
 	return tf.SaveTasks(tasks)
 }
 
-func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task), taskFile *TaskFile) error {
-	tasks, err := taskFile.LoadTasks()
+func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
+	lock, err := tf.lock()
+	if err != nil {
+		return fmt.Errorf("failed to lock task file: %w", err)
+	}
+	defer func() { _ = lock.Unlock() }()
+
+	tasks, err := tf.LoadTasks()
 	if err != nil {
 		return err
 	}
@@ -222,7 +228,7 @@ func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updat
 		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
-	return taskFile.SaveTasks(tasks)
+	return tf.SaveTasks(tasks)
 }
 
 // SaveDeletedTasksToTrash saves deleted tasks to trash.json

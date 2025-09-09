@@ -113,11 +113,11 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 			}
 
 			// Update the task with conflict check
-			if err := internal.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
+			if err := taskFile.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *internal.Task) {
 				t.Title = taskToEdit.Title
 				t.Projects = taskToEdit.Projects
 				t.Note = taskToEdit.Note
-			}, taskFile); err != nil {
+			}); err != nil {
 				if strings.Contains(err.Error(), "modified by another process") {
 					fmt.Println("Conflict: task was modified by another process, please try again")
 				} else {
