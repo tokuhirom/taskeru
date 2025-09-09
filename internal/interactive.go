@@ -1212,10 +1212,6 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 	}
 }
 
-func ShowInteractiveTaskList(tasks []Task) ([]Task, bool, *Task, []string, string, bool, error) {
-	return ShowInteractiveTaskListWithFilter(tasks, "")
-}
-
 func ShowInteractiveTaskListWithFilter(tasks []Task, projectFilter string) ([]Task, bool, *Task, []string, string, bool, error) {
 	model := NewInteractiveTaskListWithFilter(tasks, projectFilter)
 	p := tea.NewProgram(model)
