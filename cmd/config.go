@@ -14,30 +14,19 @@ func InitConfigCommand() error {
 	}
 
 	// Check if config already exists
-	if _, err := os.Stat(configPath); err == nil {
+	if content, err := os.ReadFile(configPath); err == nil {
 		fmt.Printf("Configuration file already exists at %s\n", configPath)
 		fmt.Println("\nCurrent settings:")
 		fmt.Println("=================")
+		fmt.Printf("%s\n", string(content))
+	} else {
+		// Create default config
+		if err := internal.SaveDefaultConfig(); err != nil {
+			return fmt.Errorf("failed to create config file: %w", err)
+		}
 
-		// Load and display current config
-		config, _ := internal.LoadConfig()
-		fmt.Printf("editor.add_timestamp = %v\n", config.Editor.AddTimestamp)
-
-		return nil
+		fmt.Printf("Created configuration file at %s\n", configPath)
 	}
-
-	// Create default config
-	if err := internal.SaveDefaultConfig(); err != nil {
-		return fmt.Errorf("failed to create config file: %w", err)
-	}
-
-	fmt.Printf("Created configuration file at %s\n", configPath)
-	fmt.Println("\nDefault settings:")
-	fmt.Println("=================")
-	fmt.Println("editor.add_timestamp = false")
-	fmt.Println("\nEdit this file to customize taskeru behavior.")
-	fmt.Println("\nAvailable settings:")
-	fmt.Println("  editor.add_timestamp - Add timestamps when editing tasks (true/false)")
 
 	return nil
 }
