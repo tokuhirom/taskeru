@@ -165,11 +165,6 @@ func (tf *TaskFile) SaveTasks(tasks []Task) error {
 	return nil
 }
 
-// Deprecated: use TaskFile.SaveTasks instead
-func SaveTasks(tasks []Task) error {
-	return OpenTaskFile().SaveTasks(tasks)
-}
-
 func (tf *TaskFile) lock() (*flock.Flock, error) {
 	lock := flock.New(tf.Path + ".lock")
 	if err := lock.Lock(); err != nil {
