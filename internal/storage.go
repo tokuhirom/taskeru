@@ -201,7 +201,8 @@ func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated t
 		if tasks[i].ID == taskID {
 			// Check if the task has been updated since we loaded it
 			if !tasks[i].Updated.Equal(originalUpdated) {
-				return fmt.Errorf("task has been modified by another process")
+				return fmt.Errorf("task has been modified by another process(%v != %v)",
+					tasks[i].Updated, originalUpdated)
 			}
 			updateFunc(&tasks[i])
 			tasks[i].Updated = time.Now()

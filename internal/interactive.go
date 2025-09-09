@@ -76,6 +76,11 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 }
 
 func (m *InteractiveTaskList) ReloadTasks() error {
+	taskID := ""
+	if m.cursor < len(m.tasks) {
+		taskID = m.tasks[m.cursor].ID
+	}
+
 	// Sort tasks before displaying
 	tasks, err := m.taskFile.LoadTasks()
 	if err != nil {
@@ -94,6 +99,18 @@ func (m *InteractiveTaskList) ReloadTasks() error {
 	// Then apply a visibility filter
 	m.tasks = FilterVisibleTasks(filteredByProject, false)
 	m.allTasks = tasks
+
+	// Try to maintain the cursor position on the same task
+	m.cursor = 0
+	if taskID != "" {
+		for j, task := range m.tasks {
+			if task.ID == taskID {
+				m.cursor = j
+				break
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -242,6 +259,7 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Apply the date change
 				if m.cursor < len(m.tasks) {
 					taskID := m.tasks[m.cursor].ID
+					taskUpdated := m.tasks[m.cursor].Updated
 					for i := range m.allTasks {
 						if m.allTasks[i].ID == taskID {
 							// Parse the date
@@ -258,18 +276,25 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								}
 							}
 
-							// Update the task
-							switch m.dateEditMode {
-							case "deadline":
-								m.allTasks[i].DueDate = parsedDate
-							case "scheduled":
-								m.allTasks[i].ScheduledDate = parsedDate
+							if err := m.taskFile.UpdateTaskWithConflictCheck(taskID, taskUpdated, func(t *Task) {
+								// Update the task
+								switch m.dateEditMode {
+								case "deadline":
+									t.DueDate = parsedDate
+								case "scheduled":
+									t.ScheduledDate = parsedDate
+								}
+								t.Updated = time.Now()
+							}); err != nil {
+								m.err = fmt.Errorf("failed to save task: %w", err)
 							}
-							m.allTasks[i].Updated = time.Now()
 
 							// Update filtered view
-							m.applyFilters()
-							m.modified = true
+							if err := m.ReloadTasks(); err != nil {
+								m.err = fmt.Errorf("failed to reload tasks: %w", err)
+								return m, tea.ClearScreen
+							}
+
 							break
 						}
 					}
@@ -562,7 +587,6 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(m.tasks) {
 				// Find the task in allTasks and update it
 				task := m.tasks[m.cursor]
-				taskID := task.ID
 				for i := range m.allTasks {
 					if m.allTasks[i].ID == task.ID {
 						if err := m.taskFile.UpdateTaskWithConflictCheck(task.ID, task.Updated, func(t *Task) {
@@ -573,6 +597,7 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							}
 						}); err != nil {
 							m.err = fmt.Errorf("failed to save task: %w", err)
+							return m, tea.ClearScreen
 						}
 
 						// Re-sort and update filtered view
@@ -581,25 +606,6 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							return m, tea.ClearScreen
 						}
 
-						// Find the task's new position and move cursor there
-						foundTask := false
-						for j, task := range m.tasks {
-							if task.ID == taskID {
-								m.cursor = j
-								foundTask = true
-								break
-							}
-						}
-
-						// If task is no longer visible (e.g., DONE task hidden), keep cursor at same position
-						if !foundTask {
-							// Ensure cursor is within bounds
-							if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-								m.cursor = len(m.tasks) - 1
-							}
-						}
-
-						m.modified = true
 						break
 					}
 				}
