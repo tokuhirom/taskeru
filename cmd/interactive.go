@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -190,6 +191,9 @@ func editTaskNoteInteractive(task *internal.Task) error {
 	if editor == "" {
 		editor = "vim"
 	}
+	slog.Debug("Opening editor",
+		slog.String("editor", editor),
+		slog.String("file", tmpfile.Name()))
 
 	cmd := exec.Command(editor, tmpfile.Name())
 	cmd.Stdin = os.Stdin
