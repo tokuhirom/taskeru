@@ -1130,29 +1130,6 @@ func (m *InteractiveTaskList) View() string {
 	return s.String()
 }
 
-func (m *InteractiveTaskList) GetSelectedTask() *Task {
-	if m.cursor >= 0 && m.cursor < len(m.tasks) {
-		return &m.tasks[m.cursor]
-	}
-	return nil
-}
-
-func (m *InteractiveTaskList) GetTasks() []Task {
-	return m.allTasks
-}
-
-func (m *InteractiveTaskList) IsModified() bool {
-	return m.modified
-}
-
-func (m *InteractiveTaskList) GetDeletedTaskIDs() []string {
-	return m.deletedTaskIDs
-}
-
-func (m *InteractiveTaskList) GetNewTaskTitle() string {
-	return m.newTaskTitle
-}
-
 // updateMatches updates which tasks match the current search query
 func (m *InteractiveTaskList) updateMatches() {
 	m.matchingTasks = make(map[string]bool)
