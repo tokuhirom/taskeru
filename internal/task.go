@@ -242,32 +242,33 @@ func GetPriorityValue(priority string) float64 {
 	return 100 // Very low priority for invalid values
 }
 
-// SortTasks sorts tasks by status (active first, completed last), then priority (A-Z), then update time
+// SortTasks sorts tasks by status (active first, completed last), then priority (A-Z), then update time, then ID (descending)
 func SortTasks(tasks []Task) {
 	sort.Slice(tasks, func(i, j int) bool {
-		// First, completed tasks (DONE/WONTDO) always go to the bottom
 		iCompleted := tasks[i].Status == StatusDONE || tasks[i].Status == StatusWONTDO
 		jCompleted := tasks[j].Status == StatusDONE || tasks[j].Status == StatusWONTDO
 
 		if iCompleted != jCompleted {
-			return !iCompleted // Active tasks come first
+			// Active tasks come first
+			return !iCompleted
 		}
 
-		// Both are active or both are completed, sort by priority
+		if iCompleted && jCompleted {
+			// For completed tasks, sort by ID descending (newest first)
+			return tasks[i].ID > tasks[j].ID
+		}
+
+		// For active tasks, sort by priority (A-Z), then updated time (desc), then ID (desc)
 		iPriority := GetPriorityValue(tasks[i].Priority)
 		jPriority := GetPriorityValue(tasks[j].Priority)
-
 		if iPriority != jPriority {
-			return iPriority < jPriority // Lower value = higher priority
+			return iPriority < jPriority
 		}
-
-		// Same priority, sort by update time (newest first)
 		if !tasks[i].Updated.Equal(tasks[j].Updated) {
 			return tasks[i].Updated.After(tasks[j].Updated)
 		}
-
-		// Finally, sort by ID (newest first)
-		return tasks[i].ID < tasks[j].ID
+		// If all else is equal, sort by ID descending (newest first)
+		return tasks[i].ID > tasks[j].ID
 	})
 }
 
