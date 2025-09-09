@@ -703,8 +703,10 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				if err := m.ReloadTasks(); err != nil {
 					m.err = fmt.Errorf("failed to reload tasks: %w", err)
+					m.confirmDelete = false
 					return m, tea.ClearScreen
 				}
+				m.confirmDelete = false
 			}
 
 		case "n":
@@ -1096,7 +1098,7 @@ func (m *InteractiveTaskList) View() string {
 
 		s.WriteString("\n↑/k: up • ↓/j: down • Enter: select • Esc/q: cancel")
 	} else if m.confirmDelete {
-		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
+		s.WriteString(fmt.Sprintf("\n\n⚠️  Delete this task? (y/n): %s", m.tasks[m.cursor].Title))
 	} else {
 		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • D: deadline • S: scheduled • space: toggle done • /: search")
 		if m.searchQuery != "" && !m.searchMode {
