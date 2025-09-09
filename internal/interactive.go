@@ -42,28 +42,10 @@ type InteractiveTaskList struct {
 }
 
 func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) (*InteractiveTaskList, error) {
-	// Sort tasks before displaying
-	tasks, err := taskFile.LoadTasks()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load tasks: %w", err)
-	}
-	SortTasks(tasks)
-
-	// Apply project filter if specified
-	var filteredByProject []Task
-	if projectFilter != "" {
-		filteredByProject = FilterTasksByProject(tasks, projectFilter)
-	} else {
-		filteredByProject = tasks
-	}
-
-	// Then apply visibility filter
-	filteredTasks := FilterVisibleTasks(filteredByProject, false)
-
 	return &InteractiveTaskList{
 		taskFile:          taskFile,
-		allTasks:          tasks,
-		tasks:             filteredTasks,
+		allTasks:          []Task{},
+		tasks:             []Task{},
 		cursor:            0,
 		modified:          false,
 		showAll:           false,
@@ -88,7 +70,32 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 	}, nil
 }
 
+func (m *InteractiveTaskList) ReloadTasks() error {
+	// Sort tasks before displaying
+	tasks, err := m.taskFile.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+	SortTasks(tasks)
+
+	// Apply project filter if specified
+	var filteredByProject []Task
+	if m.projectFilter != "" {
+		filteredByProject = FilterTasksByProject(tasks, m.projectFilter)
+	} else {
+		filteredByProject = tasks
+	}
+
+	// Then apply a visibility filter
+	m.tasks = FilterVisibleTasks(filteredByProject, false)
+	m.allTasks = tasks
+}
+
 func (m *InteractiveTaskList) Init() tea.Cmd {
+	if err := m.ReloadTasks(); err != nil {
+		m.err = err
+	}
+
 	return nil
 }
 
@@ -403,9 +410,15 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						slog.Error("Failed to create task",
 							slog.Any("error", err))
 						m.err = fmt.Errorf("failed to create task: %w", err)
+						return m, tea.ClearScreen
 					}
 
-					fmt.Printf("Task created: %s\n", newTask.String())
+					if err := m.ReloadTasks(); err != nil {
+						slog.Error("Failed to reload tasks after adding new task",
+							slog.Any("error", err))
+						m.err = fmt.Errorf("failed to reload tasks: %w", err)
+						return m, tea.ClearScreen
+					}
 
 					return m, tea.ClearScreen
 				}
