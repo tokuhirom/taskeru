@@ -10,9 +10,9 @@ import (
 	"taskeru/internal"
 )
 
-func InteractiveCommandWithFilter(projectFilter string) error {
+func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskFile) error {
 	for {
-		tasks, err := internal.LoadTasks()
+		tasks, err := taskFile.LoadTasks()
 		if err != nil {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
@@ -83,7 +83,7 @@ func InteractiveCommandWithFilter(projectFilter string) error {
 			newTask.ScheduledDate = scheduledDate
 			newTask.DueDate = dueDate
 
-			if err := internal.AddTask(newTask); err != nil {
+			if err := taskFile.AddTask(newTask); err != nil {
 				return fmt.Errorf("failed to create task: %w", err)
 			}
 
