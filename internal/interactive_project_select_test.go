@@ -37,7 +37,7 @@ func TestProjectSelectionMode(t *testing.T) {
 
 	// Test entering project select mode with 'p'
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m := updatedModel.(InteractiveTaskList)
+	m := updatedModel.(*InteractiveTaskList)
 
 	// Check that we're in project select mode
 	if !m.projectSelectMode {
@@ -67,12 +67,12 @@ func TestProjectSelectionMode(t *testing.T) {
 	// Test navigation - move down to select 'work' (4 down presses: All tasks -> home -> personal -> urgent -> work)
 	for i := 0; i < 4; i++ {
 		m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
-		m = m2.(InteractiveTaskList)
+		m = m2.(*InteractiveTaskList)
 	}
 
 	// Press enter to select 'work'
 	m2, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = m2.(InteractiveTaskList)
+	m = m2.(*InteractiveTaskList)
 
 	// Check that we're back to normal mode with filter applied
 	if m.projectSelectMode {
@@ -103,7 +103,7 @@ func TestProjectSelectionMode(t *testing.T) {
 
 	// Test clearing filter - press 'p' again
 	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m = m2.(InteractiveTaskList)
+	m = m2.(*InteractiveTaskList)
 
 	if !m.projectSelectMode {
 		t.Error("Should be in project select mode after pressing 'p' again")
@@ -113,12 +113,12 @@ func TestProjectSelectionMode(t *testing.T) {
 	// Move cursor to position 0 (All tasks)
 	for m.projectCursor > 0 {
 		m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyUp})
-		m = m2.(InteractiveTaskList)
+		m = m2.(*InteractiveTaskList)
 	}
 
 	// Select "All tasks" (cursor is now at 0)
 	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	m = m2.(InteractiveTaskList)
+	m = m2.(*InteractiveTaskList)
 
 	if m.projectFilter != "" {
 		t.Errorf("Project filter should be empty after selecting 'All tasks', got '%s'", m.projectFilter)
@@ -149,7 +149,7 @@ func TestProjectSelectionCancel(t *testing.T) {
 
 	// Enter project select mode
 	m2, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m := m2.(InteractiveTaskList)
+	m := m2.(*InteractiveTaskList)
 
 	if !m.projectSelectMode {
 		t.Error("Should be in project select mode")
@@ -157,7 +157,7 @@ func TestProjectSelectionCancel(t *testing.T) {
 
 	// Cancel with Esc
 	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	m = m2.(InteractiveTaskList)
+	m = m2.(*InteractiveTaskList)
 
 	if m.projectSelectMode {
 		t.Error("Should not be in project select mode after Esc")
@@ -168,10 +168,10 @@ func TestProjectSelectionCancel(t *testing.T) {
 
 	// Test canceling with 'q' as well
 	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m = m2.(InteractiveTaskList)
+	m = m2.(*InteractiveTaskList)
 
 	m2, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
-	m = m2.(InteractiveTaskList)
+	m = m2.(*InteractiveTaskList)
 
 	if m.projectSelectMode {
 		t.Error("Should not be in project select mode after 'q'")
@@ -201,7 +201,7 @@ func TestProjectSelectionCurrentFilterHighlight(t *testing.T) {
 
 	// Enter project select mode
 	m2, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m := m2.(InteractiveTaskList)
+	m := m2.(*InteractiveTaskList)
 
 	// Check that cursor is positioned at 'work'
 	// Projects are sorted alphabetically: personal, work

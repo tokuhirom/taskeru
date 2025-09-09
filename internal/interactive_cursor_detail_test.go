@@ -28,7 +28,7 @@ func TestDetailedStatusCycle(t *testing.T) {
 
 	// Press 's' to change to DOING
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	t.Logf("\nAfter pressing 's' (should be DOING):")
 	t.Logf("  Cursor position: %d", interactiveModel.cursor)

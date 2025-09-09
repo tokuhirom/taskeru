@@ -37,7 +37,7 @@ func TestProjectSelectionColors(t *testing.T) {
 
 	// Enter project select mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m := updatedModel.(InteractiveTaskList)
+	m := updatedModel.(*InteractiveTaskList)
 
 	view := m.View()
 
@@ -107,7 +107,7 @@ func TestProjectSelectionWithHiddenTasks(t *testing.T) {
 
 	// Enter project select mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
-	m := updatedModel.(InteractiveTaskList)
+	m := updatedModel.(*InteractiveTaskList)
 
 	view := m.View()
 

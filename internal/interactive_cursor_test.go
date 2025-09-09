@@ -48,7 +48,7 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 
 	// Move cursor to second visible task (Task 3)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.cursor != 1 {
 		t.Errorf("Cursor should be at position 1, got %d", interactiveModel.cursor)
@@ -67,7 +67,7 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 
 	// Now change Task 3 to DONE (it will stay visible as it's completed today)
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	// Task 3 should still be visible (completed today)
 	// So we still have 2 visible tasks
@@ -137,7 +137,7 @@ func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
 
 	// Toggle Task 3 to DONE with space (will stay visible as completed today)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Task 3 should still be visible (completed today)
 	if len(interactiveModel.tasks) != 3 {
@@ -191,7 +191,7 @@ func TestCursorFollowsTaskWhenStatusChangesButStaysVisible(t *testing.T) {
 
 	// Change status to DOING (which might change sort order)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Find where "Normal task" ended up after sorting
 	normalTaskNewIdx := -1
@@ -236,15 +236,14 @@ func TestMultipleStatusChangesKeepCursorStable(t *testing.T) {
 	statuses := GetAllStatuses()
 	for i := 0; i < len(statuses); i++ {
 		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-		interactiveModel := updatedModel.(InteractiveTaskList)
-		model = &interactiveModel
+		interactiveModel := updatedModel.(*InteractiveTaskList)
 
 		// Cursor should either:
 		// 1. Follow the task if it's still visible
 		// 2. Stay at the same index if task became hidden
-		if model.cursor >= len(model.tasks) && len(model.tasks) > 0 {
+		if interactiveModel.cursor >= len(interactiveModel.tasks) && len(interactiveModel.tasks) > 0 {
 			t.Errorf("Cursor %d is out of bounds (tasks count: %d) after %d status changes",
-				model.cursor, len(model.tasks), i+1)
+				interactiveModel.cursor, len(interactiveModel.tasks), i+1)
 		}
 	}
 }

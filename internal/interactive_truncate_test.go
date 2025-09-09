@@ -114,7 +114,7 @@ func TestWindowSizeUpdate(t *testing.T) {
 		Height: 40,
 	})
 
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 	if interactiveModel.width != 120 || interactiveModel.height != 40 {
 		t.Errorf("Expected updated dimensions 120x40, got %dx%d", interactiveModel.width, interactiveModel.height)
 	}

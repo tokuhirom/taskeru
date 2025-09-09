@@ -31,7 +31,7 @@ func TestSearchMode(t *testing.T) {
 
 	// Test entering search mode with /
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	if !interactiveModel.searchMode {
 		t.Error("Should be in search mode after pressing /")
@@ -41,7 +41,7 @@ func TestSearchMode(t *testing.T) {
 	searchQuery := "work"
 	for _, ch := range searchQuery {
 		updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
-		interactiveModel = updatedModel.(InteractiveTaskList)
+		interactiveModel = updatedModel.(*InteractiveTaskList)
 	}
 
 	if interactiveModel.searchQuery != searchQuery {
@@ -58,7 +58,7 @@ func TestSearchMode(t *testing.T) {
 
 	// Test ESC to exit search mode (but keep query)
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.searchMode {
 		t.Error("Should exit search mode after pressing ESC")
@@ -70,7 +70,7 @@ func TestSearchMode(t *testing.T) {
 
 	// Test ESC again to clear search when not in search mode
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.searchQuery != "" {
 		t.Error("Search query should be cleared after pressing ESC when not in search mode")

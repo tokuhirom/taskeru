@@ -88,13 +88,13 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 	}, nil
 }
 
-func (m InteractiveTaskList) Init() tea.Cmd {
+func (m *InteractiveTaskList) Init() tea.Cmd {
 	return nil
 }
 
 // truncateTaskLine truncates the task line to fit within the terminal width
 // It prioritizes showing project names by truncating the title if necessary
-func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string, status string, priority string, title string, projects []string, additionalInfo string) string {
+func (m *InteractiveTaskList) truncateTaskLine(cursor string, statusColor string, status string, priority string, title string, projects []string, additionalInfo string) string {
 	// Calculate base components length
 	baseLen := len(cursor) + len(status) + 1 + len(priority) + 1 // cursor + status + space + priority + space
 
@@ -130,7 +130,7 @@ func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string,
 }
 
 // stripAnsiCodes removes ANSI escape codes from a string
-func (m InteractiveTaskList) stripAnsiCodes(s string) string {
+func (m *InteractiveTaskList) stripAnsiCodes(s string) string {
 	// Simple implementation - removes common ANSI codes
 	result := s
 	for {
@@ -180,7 +180,7 @@ func (m *InteractiveTaskList) getAvailableProjects() []string {
 	return projects
 }
 
-func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// Update terminal dimensions
@@ -886,7 +886,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m InteractiveTaskList) View() string {
+func (m *InteractiveTaskList) View() string {
 	if m.quit {
 		return ""
 	}
@@ -1130,26 +1130,26 @@ func (m InteractiveTaskList) View() string {
 	return s.String()
 }
 
-func (m InteractiveTaskList) GetSelectedTask() *Task {
+func (m *InteractiveTaskList) GetSelectedTask() *Task {
 	if m.cursor >= 0 && m.cursor < len(m.tasks) {
 		return &m.tasks[m.cursor]
 	}
 	return nil
 }
 
-func (m InteractiveTaskList) GetTasks() []Task {
+func (m *InteractiveTaskList) GetTasks() []Task {
 	return m.allTasks
 }
 
-func (m InteractiveTaskList) IsModified() bool {
+func (m *InteractiveTaskList) IsModified() bool {
 	return m.modified
 }
 
-func (m InteractiveTaskList) GetDeletedTaskIDs() []string {
+func (m *InteractiveTaskList) GetDeletedTaskIDs() []string {
 	return m.deletedTaskIDs
 }
 
-func (m InteractiveTaskList) GetNewTaskTitle() string {
+func (m *InteractiveTaskList) GetNewTaskTitle() string {
 	return m.newTaskTitle
 }
 

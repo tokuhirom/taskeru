@@ -27,7 +27,7 @@ func TestDebugCursorBehavior(t *testing.T) {
 
 	// Toggle Task 2 to DONE with space
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	t.Logf("\nAfter toggling to DONE:")
 	t.Logf("  cursor=%d, tasks=%d", interactiveModel.cursor, len(interactiveModel.tasks))
@@ -59,14 +59,13 @@ func TestDebugStatusCycle(t *testing.T) {
 	statuses := GetAllStatuses()
 	for _, expectedStatus := range statuses[1:] { // Skip TODO since we start there
 		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-		interactiveModel := updatedModel.(InteractiveTaskList)
-		model = &interactiveModel
+		interactiveModel := updatedModel.(*InteractiveTaskList)
 
 		t.Logf("\nAfter changing to %s:", expectedStatus)
-		t.Logf("  cursor=%d, tasks=%d", model.cursor, len(model.tasks))
+		t.Logf("  cursor=%d, tasks=%d", interactiveModel.cursor, len(interactiveModel.tasks))
 
-		if model.cursor < len(model.tasks) {
-			currentTask := model.tasks[model.cursor]
+		if interactiveModel.cursor < len(interactiveModel.tasks) {
+			currentTask := interactiveModel.tasks[interactiveModel.cursor]
 			t.Logf("  Cursor points to: %s - %s", currentTask.Title, currentTask.Status)
 		}
 	}
