@@ -16,7 +16,7 @@ type InteractiveTaskList struct {
 	allTasks          []Task
 	tasks             []Task
 	cursor            int
-	modified          bool
+	modified          bool // Deprecate this.
 	showAll           bool
 	quit              bool
 	confirmDelete     bool
@@ -42,7 +42,7 @@ type InteractiveTaskList struct {
 }
 
 func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) (*InteractiveTaskList, error) {
-	return &InteractiveTaskList{
+	m := &InteractiveTaskList{
 		taskFile:          taskFile,
 		allTasks:          []Task{},
 		tasks:             []Task{},
@@ -67,7 +67,12 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 		projectCursor:     0,
 		width:             80, // Default width
 		height:            24, // Default height
-	}, nil
+	}
+
+	if err := m.ReloadTasks(); err != nil {
+		return nil, fmt.Errorf("failed to load tasks: %w", err)
+	}
+	return m, nil
 }
 
 func (m *InteractiveTaskList) ReloadTasks() error {
@@ -89,6 +94,7 @@ func (m *InteractiveTaskList) ReloadTasks() error {
 	// Then apply a visibility filter
 	m.tasks = FilterVisibleTasks(filteredByProject, false)
 	m.allTasks = tasks
+	return nil
 }
 
 func (m *InteractiveTaskList) Init() tea.Cmd {
@@ -555,18 +561,25 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Quick toggle between TODO and DONE (most common transition)
 			if m.cursor < len(m.tasks) {
 				// Find the task in allTasks and update it
-				taskID := m.tasks[m.cursor].ID
+				task := m.tasks[m.cursor]
+				taskID := task.ID
 				for i := range m.allTasks {
-					if m.allTasks[i].ID == taskID {
-						if m.allTasks[i].Status == StatusDONE {
-							m.allTasks[i].SetStatus(StatusTODO)
-						} else {
-							m.allTasks[i].SetStatus(StatusDONE)
+					if m.allTasks[i].ID == task.ID {
+						if err := m.taskFile.UpdateTaskWithConflictCheck(task.ID, task.Updated, func(t *Task) {
+							if t.Status == StatusDONE {
+								t.SetStatus(StatusTODO)
+							} else {
+								t.SetStatus(StatusDONE)
+							}
+						}); err != nil {
+							m.err = fmt.Errorf("failed to save task: %w", err)
 						}
 
 						// Re-sort and update filtered view
-						SortTasks(m.allTasks)
-						m.applyFilters()
+						if err := m.ReloadTasks(); err != nil {
+							m.err = fmt.Errorf("failed to reload tasks: %w", err)
+							return m, tea.ClearScreen
+						}
 
 						// Find the task's new position and move cursor there
 						foundTask := false
