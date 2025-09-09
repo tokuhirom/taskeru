@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,6 +26,9 @@ func GetTaskFilePath() string {
 
 	home, err := os.UserHomeDir()
 	if err != nil {
+		slog.Error("failed to get user home directory",
+			slog.Any("error", err))
+		// Fallback to the current directory
 		return "todo.json"
 	}
 	return filepath.Join(home, "todo.json")
