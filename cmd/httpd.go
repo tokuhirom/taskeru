@@ -224,8 +224,17 @@ func groupTasksByStatus(tasks []internal.Task) map[string][]internal.Task {
 		result[status] = []internal.Task{}
 	}
 
+	now := time.Now()
+	oneDayAgo := now.AddDate(0, 0, -1)
+
 	for _, task := range tasks {
 		status := strings.ToUpper(task.Status)
+
+		// Skip old completed tasks (DONE or WONTDO completed more than 1 day ago)
+		if (status == "DONE" || status == "WONTDO") && task.CompletedAt != nil && task.CompletedAt.Before(oneDayAgo) {
+			continue
+		}
+
 		if _, ok := result[status]; ok {
 			result[status] = append(result[status], task)
 		} else {
@@ -461,6 +470,15 @@ body {
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
+}
+
+.kanban-footer {
+	margin-top: 1rem;
+	padding: 0.5rem;
+	text-align: center;
+	color: var(--text-secondary);
+	font-style: italic;
+	opacity: 0.7;
 }
 
 .kanban-card {
