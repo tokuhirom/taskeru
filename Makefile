@@ -14,3 +14,6 @@ test:
 # Clean build artifacts
 clean:
 	rm -f taskeru
+
+fmt:
+	golangci-lint fmt .
