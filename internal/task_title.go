@@ -6,13 +6,33 @@ import (
 	"time"
 )
 
+type ParsedTitle struct {
+	Title     string
+	Projects  []string
+	Deadline  *time.Time
+	Scheduled *time.Time
+}
+
+func ParseTitle(title string) ParsedTitle {
+	cleanTitle, scheduled := ExtractScheduledDateFromTitle(title)
+	cleanTitle, deadline := ExtractDeadlineFromTitle(cleanTitle)
+	cleanTitle, projects := ExtractProjectsFromTitle(cleanTitle)
+
+	return ParsedTitle{
+		Title:     cleanTitle,
+		Projects:  projects,
+		Deadline:  deadline,
+		Scheduled: scheduled,
+	}
+}
+
 // ExtractProjectsFromTitle extracts project tags (+project) from the end of title and returns cleaned title and projects
 func ExtractProjectsFromTitle(title string) (string, []string) {
 	// Extract project tags only from the end of the string
 	// Pattern: (whitespace or start) followed by +project at the end
 	projectEndRegex := regexp.MustCompile(`(\s+|^)\+(\S+)\s*$`)
 
-	var projects []string
+	projects := make([]string, 0)
 	cleanTitle := title
 
 	// Keep extracting project tags from the end until no more are found

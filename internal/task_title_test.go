@@ -3,7 +3,47 @@ package internal
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestParseTitle(t *testing.T) {
+	tests := []struct {
+		input            string
+		expectedTitle    string
+		expectedProjects []string
+	}{
+		{
+			input:            "Finish report +work +urgent",
+			expectedTitle:    "Finish report",
+			expectedProjects: []string{"work", "urgent"},
+		},
+		{
+			input:            "Buy groceries +personal",
+			expectedTitle:    "Buy groceries",
+			expectedProjects: []string{"personal"},
+		},
+		{
+			input:            "Simple task without projects",
+			expectedTitle:    "Simple task without projects",
+			expectedProjects: []string{},
+		},
+		{
+			input:            "Task with project in middle +work and more text",
+			expectedTitle:    "Task with project in middle +work and more text",
+			expectedProjects: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			parsed := ParseTitle(tt.input)
+
+			require.Equal(t, tt.expectedTitle, parsed.Title)
+			require.Equal(t, tt.expectedProjects, parsed.Projects)
+		})
+	}
+}
 
 func TestExtractProjectsFromTitle(t *testing.T) {
 	tests := []struct {
