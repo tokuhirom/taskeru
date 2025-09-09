@@ -140,7 +140,7 @@ func SaveTasks(tasks []Task) error {
 func AddTask(task *Task) error {
 	tasks, err := LoadTasks()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
 	tasks = append(tasks, *task)

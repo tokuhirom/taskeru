@@ -37,7 +37,7 @@ func TestParseTitle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			parsed := ParseTitle(tt.input)
+			parsed := ParseTask(tt.input)
 
 			require.Equal(t, tt.expectedTitle, parsed.Title)
 			require.Equal(t, tt.expectedProjects, parsed.Projects)

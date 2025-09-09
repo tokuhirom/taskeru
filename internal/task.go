@@ -1,7 +1,9 @@
 package internal
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,6 +46,21 @@ func NewTask(title string) *Task {
 		Updated: now,
 		Status:  StatusTODO,
 	}
+}
+
+func (t *Task) String() string {
+	var buf strings.Builder
+	buf.WriteString(t.Title)
+	if len(t.Projects) > 0 {
+		buf.WriteString(fmt.Sprintf(" [Projects: %s]", strings.Join(t.Projects, ", ")))
+	}
+	if t.ScheduledDate != nil {
+		buf.WriteString(fmt.Sprintf(" [Scheduled: %s]", t.ScheduledDate.Format("2006-01-02")))
+	}
+	if t.DueDate != nil {
+		buf.WriteString(fmt.Sprintf(" [Due: %s]", t.DueDate.Format("2006-01-02")))
+	}
+	return t.Title
 }
 
 func (t *Task) SetPriority(priority string) {

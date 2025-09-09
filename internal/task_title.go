@@ -6,24 +6,17 @@ import (
 	"time"
 )
 
-type ParsedTitle struct {
-	Title     string
-	Projects  []string
-	Deadline  *time.Time
-	Scheduled *time.Time
-}
-
-func ParseTitle(title string) ParsedTitle {
+func ParseTask(title string) *Task {
 	cleanTitle, scheduled := ExtractScheduledDateFromTitle(title)
 	cleanTitle, deadline := ExtractDeadlineFromTitle(cleanTitle)
 	cleanTitle, projects := ExtractProjectsFromTitle(cleanTitle)
 
-	return ParsedTitle{
-		Title:     cleanTitle,
-		Projects:  projects,
-		Deadline:  deadline,
-		Scheduled: scheduled,
-	}
+	task := NewTask(cleanTitle)
+	task.Projects = projects
+	task.DueDate = deadline
+	task.ScheduledDate = scheduled
+
+	return task
 }
 
 // ExtractProjectsFromTitle extracts project tags (+project) from the end of title and returns cleaned title and projects
