@@ -34,6 +34,13 @@ func NewTaskFileForTesting(t *testing.T) *TaskFile {
 	}
 }
 
+func NewTaskFileWithPath(path string) *TaskFile {
+	SetTaskFilePath(path) // TODO: TEMPORARY HACK. I'll remove this later.
+	return &TaskFile{
+		Path: path,
+	}
+}
+
 func OpenTaskFile() *TaskFile {
 	filePath := GetTaskFilePath()
 	return &TaskFile{
@@ -57,11 +64,13 @@ func GetTaskFilePath() string {
 	return filepath.Join(home, "todo.json")
 }
 
-func GetTrashFilePath() string {
+func (tf *TaskFile) GetTrashFilePath() string {
+	// We should not expose this method, right?
+
 	// If -t option is used, put trash file in the same directory
-	if taskFilePath != "" {
-		dir := filepath.Dir(taskFilePath)
-		base := filepath.Base(taskFilePath)
+	if tf.Path != "" {
+		dir := filepath.Dir(tf.Path)
+		base := filepath.Base(tf.Path)
 		ext := filepath.Ext(base)
 		name := base[:len(base)-len(ext)]
 		return filepath.Join(dir, name+".trash"+ext)
@@ -217,12 +226,12 @@ func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updat
 }
 
 // SaveDeletedTasksToTrash saves deleted tasks to trash.json
-func SaveDeletedTasksToTrash(deletedTasks []Task) error {
+func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
 	if len(deletedTasks) == 0 {
 		return nil
 	}
 
-	trashPath := GetTrashFilePath()
+	trashPath := tf.GetTrashFilePath()
 
 	// Load existing trash tasks
 	existingTrash := []Task{}

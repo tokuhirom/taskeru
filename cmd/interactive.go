@@ -63,7 +63,7 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 			}
 
 			// Save to trash
-			if err := internal.SaveDeletedTasksToTrash(deletedTasks); err != nil {
+			if err := taskFile.SaveDeletedTasksToTrash(deletedTasks); err != nil {
 				fmt.Printf("Warning: failed to save to trash: %v\n", err)
 			}
 

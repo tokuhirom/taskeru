@@ -59,12 +59,6 @@ func TestGetTaskFilePath(t *testing.T) {
 }
 
 func TestGetTrashFilePath(t *testing.T) {
-	// Save original value and restore after test
-	originalPath := taskFilePath
-	defer func() {
-		taskFilePath = originalPath
-	}()
-
 	tests := []struct {
 		name         string
 		setPath      string
@@ -90,8 +84,8 @@ func TestGetTrashFilePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			SetTaskFilePath(tt.setPath)
-			got := GetTrashFilePath()
+			taskFile := NewTaskFileWithPath(tt.setPath)
+			got := taskFile.GetTrashFilePath()
 
 			if tt.want != "" {
 				if got != tt.want {
@@ -189,13 +183,13 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 	}
 
 	// Save to trash
-	err := SaveDeletedTasksToTrash(deletedTasks)
+	err := taskFile.SaveDeletedTasksToTrash(deletedTasks)
 	if err != nil {
 		t.Fatalf("SaveDeletedTasksToTrash() error = %v", err)
 	}
 
 	// Check trash file exists
-	trashFile := GetTrashFilePath()
+	trashFile := taskFile.GetTrashFilePath()
 	if _, err := os.Stat(trashFile); os.IsNotExist(err) {
 		t.Fatalf("Trash file was not created: %v", trashFile)
 	}
@@ -205,10 +199,8 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 		*NewTask("Deleted task 3"),
 	}
 
-	err = SaveDeletedTasksToTrash(moreTasks)
-	if err != nil {
-		t.Fatalf("SaveDeletedTasksToTrash() second call error = %v", err)
-	}
+	err = taskFile.SaveDeletedTasksToTrash(moreTasks)
+	require.NoError(t, err, "SaveDeletedTasksToTrash()")
 
 	// Verify a trash file contains all deleted tasks
 	// Note: We can't easily verify the contents without exposing a load function for trash,
