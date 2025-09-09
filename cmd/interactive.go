@@ -10,10 +10,6 @@ import (
 	"taskeru/internal"
 )
 
-func InteractiveCommand() error {
-	return InteractiveCommandWithFilter("")
-}
-
 func InteractiveCommandWithFilter(projectFilter string) error {
 	for {
 		tasks, err := internal.LoadTasks()
