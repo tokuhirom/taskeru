@@ -57,10 +57,6 @@ func TestDateEditMode(t *testing.T) {
 	if interactiveModel.dateEditMode != "scheduled" {
 		t.Error("Should be in scheduled edit mode after pressing S")
 	}
-
-	// Cancel again
-	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(*InteractiveTaskList)
 }
 
 func TestDateEditWithExistingDates(t *testing.T) {
