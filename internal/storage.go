@@ -74,11 +74,6 @@ func GetTrashFilePath() string {
 	return filepath.Join(home, "trash.json")
 }
 
-// Deprecated: use TaskFile.LoadTasks instead
-func LoadTasks() ([]Task, error) {
-	return OpenTaskFile().LoadTasks()
-}
-
 func (tf *TaskFile) LoadTasks() ([]Task, error) {
 	filePath := GetTaskFilePath()
 	file, err := os.Open(filePath)
