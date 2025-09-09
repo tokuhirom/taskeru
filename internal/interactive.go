@@ -852,21 +852,17 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if taskIdx >= 0 {
-					m.allTasks[taskIdx].IncreasePriority()
-
-					// Re-sort and update filtered view
-					SortTasks(m.allTasks)
-					m.applyFilters()
-
-					// Find the task's new position and move cursor there
-					for i, task := range m.tasks {
-						if task.ID == currentTaskID {
-							m.cursor = i
-							break
-						}
+					if err := m.taskFile.UpdateTaskWithConflictCheck(m.allTasks[taskIdx].ID, m.allTasks[taskIdx].Updated, func(t *Task) {
+						t.IncreasePriority()
+					}); err != nil {
+						m.err = fmt.Errorf("failed to save task: %w", err)
+						return m, tea.ClearScreen
 					}
 
-					m.modified = true
+					if err := m.ReloadTasks(); err != nil {
+						m.err = fmt.Errorf("failed to reload tasks: %w", err)
+						return m, tea.ClearScreen
+					}
 				}
 			}
 
@@ -883,21 +879,17 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if taskIdx >= 0 {
-					m.allTasks[taskIdx].DecreasePriority()
-
-					// Re-sort and update filtered view
-					SortTasks(m.allTasks)
-					m.applyFilters()
-
-					// Find the task's new position and move cursor there
-					for i, task := range m.tasks {
-						if task.ID == currentTaskID {
-							m.cursor = i
-							break
-						}
+					if err := m.taskFile.UpdateTaskWithConflictCheck(m.allTasks[taskIdx].ID, m.allTasks[taskIdx].Updated, func(t *Task) {
+						t.DecreasePriority()
+					}); err != nil {
+						m.err = fmt.Errorf("failed to save task: %w", err)
+						return m, tea.ClearScreen
 					}
 
-					m.modified = true
+					if err := m.ReloadTasks(); err != nil {
+						m.err = fmt.Errorf("failed to reload tasks: %w", err)
+						return m, tea.ClearScreen
+					}
 				}
 			}
 		}
