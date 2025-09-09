@@ -2,6 +2,8 @@ package internal
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestInteractiveWithProjectFilter(t *testing.T) {
@@ -18,14 +20,21 @@ func TestInteractiveWithProjectFilter(t *testing.T) {
 	tasks[2].Projects = []string{"work", "urgent"}
 	// tasks[3] has no projects
 
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
 	// Test without filter
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 	if len(model.tasks) != 4 {
 		t.Errorf("Without filter, should have 4 tasks, got %d", len(model.tasks))
 	}
 
 	// Test with work filter
-	modelWithFilter := NewInteractiveTaskListWithFilter(tasks, "work")
+	modelWithFilter, err := NewInteractiveTaskListWithFilter(taskFile, "work")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter() with filter")
 	if len(modelWithFilter.tasks) != 2 {
 		t.Errorf("With 'work' filter, should have 2 tasks, got %d", len(modelWithFilter.tasks))
 	}
@@ -45,7 +54,8 @@ func TestInteractiveWithProjectFilter(t *testing.T) {
 	}
 
 	// Test with personal filter
-	modelPersonal := NewInteractiveTaskListWithFilter(tasks, "personal")
+	modelPersonal, err := NewInteractiveTaskListWithFilter(taskFile, "personal")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter() with personal filter")
 	if len(modelPersonal.tasks) != 1 {
 		t.Errorf("With 'personal' filter, should have 1 task, got %d", len(modelPersonal.tasks))
 	}
@@ -77,8 +87,14 @@ func TestProjectFilterWithShowAll(t *testing.T) {
 	tasks[3].Status = StatusDONE
 	tasks[3].SetStatus(StatusDONE) // This sets CompletedAt
 
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
 	// Test work filter without showAll (should hide completed tasks completed today)
-	modelWork := NewInteractiveTaskListWithFilter(tasks, "work")
+	modelWork, err := NewInteractiveTaskListWithFilter(taskFile, "work")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter() with work filter")
 	// Since tasks are completed today, they should still be visible
 	if len(modelWork.tasks) != 2 {
 		t.Errorf("With 'work' filter, should show 2 tasks (including today's completed), got %d", len(modelWork.tasks))
@@ -98,8 +114,14 @@ func TestProjectFilterTitle(t *testing.T) {
 	}
 	tasks[0].Projects = []string{"myproject"}
 
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
 	// Test that project filter is shown in title
-	model := NewInteractiveTaskListWithFilter(tasks, "myproject")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "myproject")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter() with project filter")
 	view := model.View()
 
 	// Check that the view contains the project filter (format: "Tasks for project: +myproject")
@@ -108,7 +130,8 @@ func TestProjectFilterTitle(t *testing.T) {
 	}
 
 	// Test without filter
-	modelNoFilter := NewInteractiveTaskListWithFilter(tasks, "")
+	modelNoFilter, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter() without filter")
 	viewNoFilter := modelNoFilter.View()
 
 	if containsStr(viewNoFilter, "Tasks for project:") {

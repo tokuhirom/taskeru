@@ -5,15 +5,16 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	// Create test tasks with different timestamps to ensure consistent ordering
 	now := time.Now()
 	tasks := []Task{
-		*NewTask("Task 1"),
-		*NewTask("Task 2"),
-		*NewTask("Task 3"),
+		*ParseTask("Task 1"),
+		*ParseTask("Task 2"),
+		*ParseTask("Task 3"),
 	}
 
 	// Set different updated times to ensure predictable sort order
@@ -32,7 +33,13 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	tasks[1].Status = StatusDONE
 	tasks[1].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+	require.NoError(t, taskFile.AddTask(&tasks[1]))
+	require.NoError(t, taskFile.AddTask(&tasks[2]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Should only see 2 tasks (Task 1 and Task 3)
 	if len(model.tasks) != 2 {
@@ -112,7 +119,13 @@ func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
 	tasks[2].Status = StatusDONE
 	tasks[2].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Should see 3 visible tasks initially
 	if len(model.tasks) != 3 {
@@ -155,7 +168,13 @@ func TestCursorFollowsTaskWhenStatusChangesButStaysVisible(t *testing.T) {
 	tasks[2].Priority = "low"
 	tasks[2].Status = StatusTODO
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 	model.showAll = true // Ensure all tasks stay visible
 
 	// Find the "Normal task" position
@@ -204,7 +223,11 @@ func TestMultipleStatusChangesKeepCursorStable(t *testing.T) {
 		tasks[i].Status = StatusTODO
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	// Move to Task B (index 1)
 	model.cursor = 1

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSpaceKeyBehavior(t *testing.T) {
@@ -25,7 +26,12 @@ func TestSpaceKeyBehavior(t *testing.T) {
 	tasks[1].Status = StatusDONE
 	tasks[1].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	// Add tasks to a TaskFile
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	t.Logf("Initial state:")
 	t.Logf("  All tasks count: %d", len(model.allTasks))

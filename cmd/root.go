@@ -3,6 +3,7 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"taskeru/internal"
@@ -12,8 +13,10 @@ func Execute() {
 	// Parse global flags first
 	var taskFileName string
 	var projectFilter string
+	var logFile string
 	flag.StringVar(&taskFileName, "t", "", "Path to task file")
 	flag.StringVar(&projectFilter, "p", "", "Filter tasks by project (for ls command)")
+	flag.StringVar(&logFile, "l", "", "Path to log file")
 
 	// Custom usage to handle our command structure
 	flag.Usage = func() {
@@ -33,6 +36,19 @@ func Execute() {
 
 	// Get command and remaining args
 	args := flag.Args()
+
+	// logFile に書いていく
+	if logFile != "" {
+		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed to open log file: %v\n", err)
+			os.Exit(1)
+		}
+		defer func() {
+			_ = f.Close()
+		}()
+		slog.SetDefault(slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{})))
+	}
 
 	if len(args) == 0 {
 		// No command, run interactive mode (with project filter if specified)

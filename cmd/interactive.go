@@ -9,19 +9,36 @@ import (
 	"time"
 
 	"taskeru/internal"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskFile) error {
+	model, err := internal.NewInteractiveTaskListWithFilter(taskFile, projectFilter)
+	if err != nil {
+		return fmt.Errorf("failed to create interactive model: %w", err)
+	}
+
+	// Start Bubble Tea program with AltScreen
+	p := tea.NewProgram(model, tea.WithAltScreen())
+	_, err = p.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run interactive UI: %w", err)
+	}
+
 	for {
 		tasks, err := taskFile.LoadTasks()
 		if err != nil {
 			return fmt.Errorf("failed to load tasks: %w", err)
 		}
 
-		updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, err := internal.ShowInteractiveTaskListWithFilter(tasks, projectFilter)
-		if err != nil {
-			return fmt.Errorf("failed to show interactive list: %w", err)
-		}
+		//updatedTasks, modified, taskToEdit, deletedTaskIDs, newTaskTitle, shouldReload, err := internal.ShowInteractiveTaskListWithFilter(tasks, projectFilter)
+		var updatedTasks []internal.Task
+		var modified bool
+		var taskToEdit *internal.Task
+		var deletedTaskIDs []string
+		var newTaskTitle string
+		var shouldReload bool
 
 		// Handle reload
 		if shouldReload {

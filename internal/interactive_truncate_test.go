@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTruncateTaskLine(t *testing.T) {
@@ -61,7 +62,11 @@ func TestTruncateTaskLine(t *testing.T) {
 			task.Projects = tt.projects
 			task.Status = StatusTODO
 
-			model := NewInteractiveTaskListWithFilter([]Task{*task}, "")
+			taskFile := NewTaskFileForTesting(t)
+			require.NoError(t, taskFile.AddTask(task))
+
+			model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+			require.NoError(t, err)
 			model.width = tt.width
 
 			// Simulate the truncation
@@ -93,7 +98,10 @@ func TestTruncateTaskLine(t *testing.T) {
 
 func TestWindowSizeUpdate(t *testing.T) {
 	task := NewTask("Test task")
-	model := NewInteractiveTaskListWithFilter([]Task{*task}, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(task))
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Initial dimensions should be defaults
 	if model.width != 80 || model.height != 24 {
@@ -113,7 +121,9 @@ func TestWindowSizeUpdate(t *testing.T) {
 }
 
 func TestStripAnsiCodes(t *testing.T) {
-	model := NewInteractiveTaskListWithFilter([]Task{}, "")
+	taskFile := NewTaskFileForTesting(t)
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	tests := []struct {
 		input    string

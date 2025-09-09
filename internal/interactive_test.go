@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSearchMode(t *testing.T) {
@@ -22,7 +23,11 @@ func TestSearchMode(t *testing.T) {
 	tasks[2].Projects = []string{"work", "urgent"}
 	tasks[2].Note = "Review pull request"
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Test entering search mode with /
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
@@ -89,7 +94,11 @@ func TestSearchHighlighting(t *testing.T) {
 	tasks[3].Note = "Critical bug in production"
 	tasks[4].Projects = []string{"meetings"}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	tests := []struct {
 		query         string
@@ -122,7 +131,11 @@ func TestSearchCaseSensitivity(t *testing.T) {
 		*NewTask("Something else"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Search should be case-insensitive
 	queries := []string{"important", "IMPORTANT", "Important", "iMpOrTaNt"}
@@ -142,7 +155,13 @@ func TestSearchModeView(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
+
+	// Enter search mode and set query and cursor
 	model.searchMode = true
 	model.searchQuery = "test"
 	model.searchCursor = 2

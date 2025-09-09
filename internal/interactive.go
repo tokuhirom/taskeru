@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -35,10 +36,15 @@ type InteractiveTaskList struct {
 	projectCursor     int    // Cursor position in project list
 	width             int    // Terminal width
 	height            int    // Terminal height
+	taskFile          *TaskFile
 }
 
-func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *InteractiveTaskList {
+func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) (*InteractiveTaskList, error) {
 	// Sort tasks before displaying
+	tasks, err := taskFile.LoadTasks()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load tasks: %w", err)
+	}
 	SortTasks(tasks)
 
 	// Apply project filter if specified
@@ -53,6 +59,7 @@ func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *Inter
 	filteredTasks := FilterVisibleTasks(filteredByProject, false)
 
 	return &InteractiveTaskList{
+		taskFile:          taskFile,
 		allTasks:          tasks,
 		tasks:             filteredTasks,
 		cursor:            0,
@@ -77,7 +84,7 @@ func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *Inter
 		projectCursor:     0,
 		width:             80, // Default width
 		height:            24, // Default height
-	}
+	}, nil
 }
 
 func (m InteractiveTaskList) Init() tea.Cmd {
@@ -700,8 +707,13 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			// Reload tasks
 			if !m.confirmDelete && !m.inputMode {
-				m.shouldReload = true
-				return m, tea.Quit
+				tasks, err := m.taskFile.LoadTasks()
+				if err != nil {
+					slog.Error("Failed to reload tasks",
+						slog.Any("error", err))
+				}
+				m.allTasks = tasks
+				return m, nil
 			}
 
 		case "p":
@@ -1206,23 +1218,4 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 			return
 		}
 	}
-}
-
-func ShowInteractiveTaskListWithFilter(tasks []Task, projectFilter string) ([]Task, bool, *Task, []string, string, bool, error) {
-	model := NewInteractiveTaskListWithFilter(tasks, projectFilter)
-	p := tea.NewProgram(model)
-
-	result, err := p.Run()
-	if err != nil {
-		return nil, false, nil, nil, "", false, err
-	}
-
-	finalModel := result.(InteractiveTaskList)
-
-	// Check if user wants to edit a task
-	if finalModel.ShouldEdit() {
-		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
-	}
-
-	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
 }

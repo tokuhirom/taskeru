@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProjectSelectionColors(t *testing.T) {
@@ -25,8 +26,14 @@ func TestProjectSelectionColors(t *testing.T) {
 	tasks[4].Projects = []string{"home"}
 	tasks[5].Projects = []string{"work", "urgent"}
 
+	taskFile := NewTaskFileForTesting(t)
+	for i := range tasks {
+		require.NoError(t, taskFile.AddTask(&tasks[i]))
+	}
+
 	// Create interactive model
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter project select mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
@@ -89,8 +96,14 @@ func TestProjectSelectionWithHiddenTasks(t *testing.T) {
 	tasks[2].Projects = []string{"personal"}
 	tasks[2].Status = StatusTODO
 
+	taskFile := NewTaskFileForTesting(t)
+	for i := range tasks {
+		require.NoError(t, taskFile.AddTask(&tasks[i]))
+	}
+
 	// Create interactive model
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter project select mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})

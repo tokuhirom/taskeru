@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSearchNavigation(t *testing.T) {
@@ -15,8 +16,17 @@ func TestSearchNavigation(t *testing.T) {
 		*NewTask("Work on project"),
 		*NewTask("Final task"),
 	}
+	tasks[0].Priority = "A"
+	tasks[1].Priority = "B"
+	tasks[2].Priority = "C"
+	tasks[3].Priority = "D"
+	tasks[4].Priority = "E"
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter search mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
@@ -96,7 +106,11 @@ func TestSearchNavigationWithNoMatches(t *testing.T) {
 		*NewTask("Task 3"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter search mode and search for non-existent term
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})

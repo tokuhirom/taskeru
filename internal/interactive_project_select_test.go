@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProjectSelectionMode(t *testing.T) {
@@ -23,8 +24,16 @@ func TestProjectSelectionMode(t *testing.T) {
 	tasks[3].Projects = []string{"home"}
 	// tasks[4] has no projects
 
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		if err := taskFile.AddTask(&task); err != nil {
+			t.Fatalf("Failed to add task: %v", err)
+		}
+	}
+
 	// Create interactive model
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	// Test entering project select mode with 'p'
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
@@ -124,12 +133,19 @@ func TestProjectSelectionMode(t *testing.T) {
 func TestProjectSelectionCancel(t *testing.T) {
 	// Create test tasks
 	tasks := []Task{
-		*NewTask("Work task"),
+		*ParseTask("Work task +work"),
 	}
-	tasks[0].Projects = []string{"work"}
+
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		if err := taskFile.AddTask(&task); err != nil {
+			t.Fatalf("Failed to add task: %v", err)
+		}
+	}
 
 	// Create interactive model with existing filter
-	model := NewInteractiveTaskListWithFilter(tasks, "work")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "work")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	// Enter project select mode
 	m2, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
@@ -168,14 +184,20 @@ func TestProjectSelectionCancel(t *testing.T) {
 func TestProjectSelectionCurrentFilterHighlight(t *testing.T) {
 	// Create test tasks
 	tasks := []Task{
-		*NewTask("Work task"),
-		*NewTask("Personal task"),
+		*ParseTask("Work task +work"),
+		*ParseTask("Personal task +personal"),
 	}
-	tasks[0].Projects = []string{"work"}
-	tasks[1].Projects = []string{"personal"}
+
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		if err := taskFile.AddTask(&task); err != nil {
+			t.Fatalf("Failed to add task: %v", err)
+		}
+	}
 
 	// Create model with 'work' filter
-	model := NewInteractiveTaskListWithFilter(tasks, "work")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "work")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	// Enter project select mode
 	m2, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})

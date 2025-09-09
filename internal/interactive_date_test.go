@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDateEditMode(t *testing.T) {
@@ -23,7 +24,13 @@ func TestDateEditMode(t *testing.T) {
 	scheduled := time.Now().AddDate(0, 0, 3) // 3 days from now
 	tasks[2].ScheduledDate = &scheduled
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Test entering deadline edit mode with D
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -70,7 +77,11 @@ func TestDateEditWithExistingDates(t *testing.T) {
 	scheduled := time.Date(2025, 12, 25, 0, 0, 0, 0, time.Local)
 	tasks[0].ScheduledDate = &scheduled
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Test D key pre-fills existing deadline
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -101,7 +112,11 @@ func TestDateEditInput(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -146,7 +161,11 @@ func TestDateEditApply(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -187,8 +206,11 @@ func TestScheduledDateEditApply(t *testing.T) {
 	tasks := []Task{
 		*NewTask("Test task"),
 	}
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter scheduled date edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
@@ -230,7 +252,11 @@ func TestDateEditClearDate(t *testing.T) {
 	deadline := time.Now().AddDate(0, 0, 7)
 	tasks[0].DueDate = &deadline
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
@@ -261,7 +287,11 @@ func TestDateEditModeView(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 	model.dateEditMode = "deadline"
 	model.dateEditBuffer = "2025-12-31"
 	model.dateEditCursor = 5 // Position after "2025-"
@@ -300,7 +330,11 @@ func TestDateEditDoesNotTriggerDuringDelete(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskListWithFilter(tasks, "")
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter delete confirmation mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})

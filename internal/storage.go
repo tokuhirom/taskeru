@@ -165,6 +165,10 @@ func (tf *TaskFile) lock() (*flock.Flock, error) {
 }
 
 func (tf *TaskFile) AddTask(task *Task) error {
+	return tf.AddTasks([]Task{*task})
+}
+
+func (tf *TaskFile) AddTasks(newTasks []Task) error {
 	lock, err := tf.lock()
 	if err != nil {
 		return fmt.Errorf("failed to lock task file: %w", err)
@@ -176,7 +180,7 @@ func (tf *TaskFile) AddTask(task *Task) error {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
-	tasks = append(tasks, *task)
+	tasks = append(tasks, newTasks...)
 	return tf.SaveTasks(tasks)
 }
 
