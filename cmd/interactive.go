@@ -157,7 +157,10 @@ func editTaskNoteInteractive(task *internal.Task) error {
 	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
 	// Load configuration
-	config, _ := internal.LoadConfig()
+	config, err := internal.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
 
 	// Pre-fill with current title and note
 	noteContent := task.Note
