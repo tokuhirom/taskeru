@@ -50,9 +50,9 @@ func Execute() {
 
 	switch command {
 	case "add", "a":
-		err = AddCommand(nonFlagArgs)
+		err = AddCommand(taskFile, nonFlagArgs)
 	case "ls", "list", "l":
-		err = ListCommand(projectFilter, taskFile)
+		err = ListCommand(taskFile, projectFilter)
 	case "edit", "e":
 		err = EditCommand(taskFile)
 	case "httpd":
@@ -60,7 +60,7 @@ func Execute() {
 		if len(nonFlagArgs) > 0 {
 			addr = nonFlagArgs[0]
 		}
-		err = HttpdCommand(addr, taskFile)
+		err = HttpdCommand(taskFile, addr)
 	case "init-config":
 		err = InitConfigCommand()
 	case "help", "-h", "--help":

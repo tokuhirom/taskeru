@@ -80,7 +80,7 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 			os.Stdout = w
 
 			// Run list command with filter
-			err := ListCommand(tt.projectFilter, taskFile)
+			err := ListCommand(taskFile, tt.projectFilter)
 			if err != nil {
 				t.Errorf("ListCommand() error = %v", err)
 			}
@@ -170,7 +170,7 @@ func TestListCommandWithCompletedTasksAndProjectFilter(t *testing.T) {
 	os.Stdout = w
 
 	// Run list command with work filter
-	err = ListCommand("work", taskFile)
+	err = ListCommand(taskFile, "work")
 	if err != nil {
 		t.Errorf("ListCommand() error = %v", err)
 	}

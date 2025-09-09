@@ -8,7 +8,7 @@ import (
 	"taskeru/internal"
 )
 
-func ListCommand(projectFilter string, taskFile *internal.TaskFile) error {
+func ListCommand(taskFile *internal.TaskFile, projectFilter string) error {
 	tasks, err := taskFile.LoadTasks()
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)

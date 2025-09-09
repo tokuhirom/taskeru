@@ -7,7 +7,7 @@ import (
 	"taskeru/internal"
 )
 
-func AddCommand(args []string) error {
+func AddCommand(taskFile *internal.TaskFile, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("task title is required")
 	}
@@ -17,7 +17,6 @@ func AddCommand(args []string) error {
 	// Extract scheduled date from title
 	task := internal.ParseTask(title)
 
-	taskFile := internal.NewTaskFile()
 	if err := taskFile.AddTask(task); err != nil {
 		return fmt.Errorf("failed to add task: %w", err)
 	}

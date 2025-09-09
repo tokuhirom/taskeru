@@ -81,7 +81,7 @@ func init() {
 	}
 }
 
-func HttpdCommand(addr string, taskFile *internal.TaskFile) error {
+func HttpdCommand(taskFile *internal.TaskFile, addr string) error {
 	if addr == "" {
 		addr = "127.0.0.1:7676"
 	}
