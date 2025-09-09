@@ -177,8 +177,28 @@ func editTaskNoteInteractive(task *internal.Task) error {
 	}
 	defer func() { _ = os.Remove(tmpfile.Name()) }()
 
+	// Load configuration
+	config, _ := internal.LoadConfig()
+
 	// Pre-fill with current title and note
-	content := fmt.Sprintf("# %s\n\n%s", task.Title, task.Note)
+	noteContent := task.Note
+
+	// Add timestamp if enabled in config
+	if config.Editor.AddTimestamp {
+		now := time.Now()
+		// Format: YYYY-MM-DD(Day) HH:MM
+		weekday := now.Format("Mon")
+		timestamp := fmt.Sprintf("\n\n## %s(%s) %s\n\n", now.Format("2006-01-02"), weekday, now.Format("15:04"))
+
+		// Append timestamp to existing note or create new note with timestamp
+		if noteContent != "" {
+			noteContent += timestamp
+		} else {
+			noteContent = timestamp
+		}
+	}
+
+	content := fmt.Sprintf("# %s\n\n%s", task.Title, noteContent)
 	if _, err := tmpfile.WriteString(content); err != nil {
 		return fmt.Errorf("failed to write to temp file: %w", err)
 	}
