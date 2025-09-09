@@ -88,11 +88,6 @@ func LoadTasks() ([]Task, error) {
 			continue
 		}
 
-		// Migrate old data without Updated field
-		if task.Updated.IsZero() {
-			task.Updated = task.Created
-		}
-
 		tasks = append(tasks, task)
 	}
 
