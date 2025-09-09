@@ -97,7 +97,7 @@ func LoadTasks() ([]Task, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read tasks: %w", err)
 	}
 
 	return tasks, nil
