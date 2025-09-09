@@ -155,29 +155,6 @@ func AddTask(task *Task) error {
 	return SaveTasks(tasks)
 }
 
-func UpdateTask(taskID string, updateFunc func(*Task)) error {
-	tasks, err := LoadTasks()
-	if err != nil {
-		return err
-	}
-
-	found := false
-	for i := range tasks {
-		if tasks[i].ID == taskID {
-			updateFunc(&tasks[i])
-			tasks[i].Updated = time.Now()
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("task with ID %s not found", taskID)
-	}
-
-	return SaveTasks(tasks)
-}
-
 func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
 	tasks, err := LoadTasks()
 	if err != nil {
