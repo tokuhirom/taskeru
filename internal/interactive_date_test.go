@@ -40,9 +40,7 @@ func TestDateEditMode(t *testing.T) {
 		t.Error("Should be in deadline edit mode after pressing D")
 	}
 
-	if interactiveModel.dateEditBuffer != "" {
-		t.Error("Date edit buffer should be empty for task without deadline")
-	}
+	require.Empty(t, interactiveModel.dateEditBuffer, "Date edit buffer should be empty for task without deadline")
 
 	// Test ESC to cancel date edit
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})

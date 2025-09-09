@@ -16,7 +16,6 @@ type InteractiveTaskList struct {
 	allTasks          []Task
 	tasks             []Task
 	cursor            int
-	modified          bool // Deprecate this.
 	showAll           bool
 	quit              bool
 	confirmDelete     bool
@@ -46,7 +45,6 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 		allTasks:          []Task{},
 		tasks:             []Task{},
 		cursor:            0,
-		modified:          false,
 		showAll:           false,
 		confirmDelete:     false,
 		inputMode:         false,
@@ -786,56 +784,33 @@ func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "s":
 			// Cycle through statuses
 			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
-				taskIdx := -1
-				for i, t := range m.allTasks {
-					if t.ID == m.tasks[m.cursor].ID {
-						taskIdx = i
+				task := m.tasks[m.cursor]
+
+				// Save the task ID before any changes
+				allStatuses := GetAllStatuses()
+				currentStatus := task.Status
+
+				// Find the current status index
+				currentIdx := 0
+				for i, s := range allStatuses {
+					if s == currentStatus {
+						currentIdx = i
 						break
 					}
 				}
 
-				if taskIdx >= 0 {
-					// Save the task ID before any changes
-					currentTaskID := m.allTasks[taskIdx].ID
-					currentStatus := m.allTasks[taskIdx].Status
-					allStatuses := GetAllStatuses()
+				// Cycle to next status
+				nextIdx := (currentIdx + 1) % len(allStatuses)
+				if err := m.taskFile.UpdateTaskWithConflictCheck(task.ID, task.Updated, func(t *Task) {
+					t.SetStatus(allStatuses[nextIdx])
+				}); err != nil {
+					m.err = fmt.Errorf("failed to save task: %w", err)
+					return m, tea.ClearScreen
+				}
 
-					// Find current status index
-					currentIdx := 0
-					for i, s := range allStatuses {
-						if s == currentStatus {
-							currentIdx = i
-							break
-						}
-					}
-
-					// Cycle to next status
-					nextIdx := (currentIdx + 1) % len(allStatuses)
-					m.allTasks[taskIdx].SetStatus(allStatuses[nextIdx])
-
-					// Re-sort and update filtered view
-					SortTasks(m.allTasks)
-					m.applyFilters()
-
-					// Find the task's new position and move cursor there
-					foundTask := false
-					for i, task := range m.tasks {
-						if task.ID == currentTaskID {
-							m.cursor = i
-							foundTask = true
-							break
-						}
-					}
-
-					// If task is no longer visible (e.g., DONE task hidden), keep cursor at same position
-					if !foundTask {
-						// Ensure cursor is within bounds
-						if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-							m.cursor = len(m.tasks) - 1
-						}
-					}
-
-					m.modified = true
+				if err := m.ReloadTasks(); err != nil {
+					m.err = fmt.Errorf("failed to reload tasks: %w", err)
+					return m, tea.ClearScreen
 				}
 			}
 
@@ -1130,9 +1105,6 @@ func (m *InteractiveTaskList) View() string {
 		s.WriteString(" • a: all • c: create • e: edit • d: delete • p: projects • r: reload • q: quit")
 		if m.showAll {
 			s.WriteString(" [ALL]")
-		}
-		if m.modified {
-			s.WriteString(" • *modified*")
 		}
 	}
 	if m.err != nil {
