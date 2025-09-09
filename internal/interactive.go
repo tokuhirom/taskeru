@@ -36,6 +36,7 @@ type InteractiveTaskList struct {
 	width             int    // Terminal width
 	height            int    // Terminal height
 	taskFile          *TaskFile
+	err               error
 }
 
 func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) (*InteractiveTaskList, error) {
@@ -387,11 +388,24 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tea.KeyEnter:
 				// Create new task
 				if m.inputBuffer != "" {
-					m.newTaskTitle = m.inputBuffer
+					newTaskTitle := m.inputBuffer
 					m.inputMode = false
 					m.inputBuffer = ""
 					m.inputCursor = 0
-					return m, tea.Quit // Exit to create the task
+
+					// Handle new task creation
+					// Extract projects and scheduled/due dates from title
+					newTask := ParseTask(newTaskTitle)
+
+					if err := m.taskFile.AddTask(newTask); err != nil {
+						slog.Error("Failed to create task",
+							slog.Any("error", err))
+						m.err = fmt.Errorf("failed to create task: %w", err)
+					}
+
+					fmt.Printf("Task created: %s\n", newTask.String())
+
+					return m, nil
 				}
 			case tea.KeyEsc:
 				// Cancel input
@@ -705,6 +719,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			// Reload tasks
 			if !m.confirmDelete && !m.inputMode {
+				slog.Info("Reloading tasks")
 				tasks, err := m.taskFile.LoadTasks()
 				if err != nil {
 					slog.Error("Failed to reload tasks",
@@ -1090,6 +1105,9 @@ func (m InteractiveTaskList) View() string {
 		if m.modified {
 			s.WriteString(" • *modified*")
 		}
+	}
+	if m.err != nil {
+		s.WriteString("\n\n\x1b[91mError: " + m.err.Error() + "\x1b[0m\n")
 	}
 
 	return s.String()

@@ -16,7 +16,7 @@ func Execute() {
 	var logFile string
 	flag.StringVar(&taskFileName, "t", "", "Path to task file")
 	flag.StringVar(&projectFilter, "p", "", "Filter tasks by project (for ls command)")
-	flag.StringVar(&logFile, "l", "", "Path to log file")
+	flag.StringVar(&logFile, "l", "log", "Path to log file")
 
 	// Custom usage to handle our command structure
 	flag.Usage = func() {

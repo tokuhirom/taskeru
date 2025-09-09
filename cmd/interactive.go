@@ -21,8 +21,7 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 
 	// Start Bubble Tea program with AltScreen
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	_, err = p.Run()
-	if err != nil {
+	if _, err = p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive UI: %w", err)
 	}
 
