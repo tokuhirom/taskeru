@@ -3,6 +3,8 @@ package internal
 import (
 	"fmt"
 	"log/slog"
+	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -405,7 +407,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					fmt.Printf("Task created: %s\n", newTask.String())
 
-					return m, nil
+					return m, tea.ClearScreen
 				}
 			case tea.KeyEsc:
 				// Cancel input
@@ -606,8 +608,23 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "e":
 			// Edit task (open editor)
-			if m.cursor < len(m.tasks) {
-				return m, tea.Quit
+			if m.cursor >= 0 && m.cursor < len(m.tasks) {
+				taskToEdit := &m.tasks[m.cursor]
+				originalUpdated := taskToEdit.Updated
+				if err := editTaskNoteInteractive(taskToEdit); err != nil {
+					m.err = err
+					return m, nil
+				}
+
+				// Update the task with conflict check
+				if err := m.taskFile.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *Task) {
+					t.Title = taskToEdit.Title
+					t.Projects = taskToEdit.Projects
+					t.Note = taskToEdit.Note
+				}); err != nil {
+					m.err = fmt.Errorf("failed to save task: %w", err)
+				}
+				return m, nil
 			}
 
 		case "d":
@@ -726,7 +743,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						slog.Any("error", err))
 				}
 				m.allTasks = tasks
-				return m, nil
+				return m, tea.ClearScreen
 			}
 
 		case "p":
@@ -1113,10 +1130,6 @@ func (m InteractiveTaskList) View() string {
 	return s.String()
 }
 
-func (m InteractiveTaskList) ShouldEdit() bool {
-	return !m.quit && m.cursor >= 0 && m.cursor < len(m.tasks)
-}
-
 func (m InteractiveTaskList) GetSelectedTask() *Task {
 	if m.cursor >= 0 && m.cursor < len(m.tasks) {
 		return &m.tasks[m.cursor]
@@ -1230,4 +1243,102 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 			return
 		}
 	}
+}
+
+func editTaskNoteInteractive(task *Task) error {
+	// Create temp file with Markdown extension
+	tmpfile, err := os.CreateTemp("", "task-*.md")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
+
+	// Load configuration
+	config, err := LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Pre-fill with current title and note
+	noteContent := task.Note
+
+	// Add timestamp if enabled in config
+	if config.Editor.AddTimestamp {
+		now := time.Now()
+		// Format: YYYY-MM-DD(Day) HH:MM
+		timestamp := now.Format("\n\n## 2006-01-02(Mon) 15:04\n\n")
+
+		// Append timestamp to existing note or create new note with timestamp
+		if noteContent != "" {
+			noteContent += timestamp
+		} else {
+			noteContent = timestamp
+		}
+	}
+
+	content := fmt.Sprintf("# %s\n\n%s", task.Title, noteContent)
+	if _, err := tmpfile.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write to temp file: %w", err)
+	}
+	_ = tmpfile.Close()
+
+	// Open editor
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vim"
+	}
+	slog.Debug("Opening editor",
+		slog.String("editor", editor),
+		slog.String("file", tmpfile.Name()))
+
+	cmd := exec.Command(editor, tmpfile.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("editor failed: %w", err)
+	}
+
+	// Read back the edited content
+	editedContent, err := os.ReadFile(tmpfile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to read edited file: %w", err)
+	}
+
+	// Parse the content
+	lines := strings.Split(string(editedContent), "\n")
+	newTitle := task.Title // Default to original title
+	noteLines := []string{}
+	inNote := false
+
+	for _, line := range lines {
+		if !inNote && strings.HasPrefix(line, "# ") {
+			// Extract title from first heading
+			newTitle = strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			inNote = true
+		} else if inNote {
+			noteLines = append(noteLines, line)
+		}
+	}
+
+	// Trim leading empty lines from note
+	for len(noteLines) > 0 && strings.TrimSpace(noteLines[0]) == "" {
+		noteLines = noteLines[1:]
+	}
+
+	// Trim trailing empty lines from note
+	for len(noteLines) > 0 && strings.TrimSpace(noteLines[len(noteLines)-1]) == "" {
+		noteLines = noteLines[:len(noteLines)-1]
+	}
+
+	// Extract projects from the new title
+	cleanTitle, projects := ExtractProjectsFromTitle(newTitle)
+
+	// Update task
+	task.Title = cleanTitle
+	task.Projects = projects
+	task.Note = strings.Join(noteLines, "\n")
+
+	return nil
 }
