@@ -17,7 +17,8 @@ func AddCommand(args []string) error {
 	// Extract scheduled date from title
 	task := internal.ParseTask(title)
 
-	if err := internal.AddTask(task); err != nil {
+	taskFile := internal.OpenTaskFile()
+	if err := taskFile.AddTask(task); err != nil {
 		return fmt.Errorf("failed to add task: %w", err)
 	}
 

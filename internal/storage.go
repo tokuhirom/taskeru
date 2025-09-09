@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 // Global variable to store the task file path from -t option
@@ -16,6 +18,17 @@ var taskFilePath string
 // SetTaskFilePath sets the global task file path (from -t option)
 func SetTaskFilePath(path string) {
 	taskFilePath = path
+}
+
+type TaskFile struct {
+	path string
+}
+
+func OpenTaskFile() *TaskFile {
+	filePath := GetTaskFilePath()
+	return &TaskFile{
+		path: filePath,
+	}
 }
 
 func GetTaskFilePath() string {
@@ -51,7 +64,12 @@ func GetTrashFilePath() string {
 	return filepath.Join(home, "trash.json")
 }
 
+// Deprecated: use TaskFile.LoadTasks instead
 func LoadTasks() ([]Task, error) {
+	return OpenTaskFile().LoadTasks()
+}
+
+func (tf *TaskFile) LoadTasks() ([]Task, error) {
 	filePath := GetTaskFilePath()
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -98,10 +116,8 @@ func LoadTasks() ([]Task, error) {
 	return tasks, nil
 }
 
-func SaveTasks(tasks []Task) error {
-	filePath := GetTaskFilePath()
-
-	tempFile, err := os.CreateTemp(filepath.Dir(filePath), ".taskeru-*.tmp")
+func (tf *TaskFile) SaveTasks(tasks []Task) error {
+	tempFile, err := os.CreateTemp(filepath.Dir(tf.path), ".taskeru-*.tmp")
 	if err != nil {
 		return err
 	}
@@ -138,21 +154,52 @@ func SaveTasks(tasks []Task) error {
 		return err
 	}
 
-	if err := os.Rename(tempPath, filePath); err != nil {
+	if err := os.Rename(tempPath, tf.path); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func AddTask(task *Task) error {
-	tasks, err := LoadTasks()
+// Deprecated: use TaskFile.SaveTasks instead
+func SaveTasks(tasks []Task) error {
+	return OpenTaskFile().SaveTasks(tasks)
+}
+
+func (tf *TaskFile) lock() (*flock.Flock, error) {
+	lock := flock.New(tf.path + ".lock")
+	if err := lock.Lock(); err != nil {
+		return nil, fmt.Errorf("failed to lock task file: %w", err)
+	}
+	return lock, nil
+}
+
+func (tf *TaskFile) AddTask(task *Task) error {
+	lock, err := tf.lock()
+	if err != nil {
+		return fmt.Errorf("failed to lock task file: %w", err)
+	}
+	defer func() { _ = lock.Unlock() }()
+
+	tasks, err := tf.LoadTasks()
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
 	tasks = append(tasks, *task)
-	return SaveTasks(tasks)
+	return tf.SaveTasks(tasks)
+}
+
+// Deprecated: use TaskFile.AddTask instead
+func AddTask(task *Task) error {
+	tf := OpenTaskFile()
+	tasks, err := tf.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+
+	tasks = append(tasks, *task)
+	return tf.SaveTasks(tasks)
 }
 
 func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
