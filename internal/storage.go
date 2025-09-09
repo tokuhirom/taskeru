@@ -75,17 +75,16 @@ func GetTrashFilePath() string {
 }
 
 func (tf *TaskFile) LoadTasks() ([]Task, error) {
-	filePath := GetTaskFilePath()
-	file, err := os.Open(filePath)
+	file, err := os.Open(tf.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			slog.Info("No task file found, return empty tasks",
-				slog.String("Path", filePath))
+				slog.String("Path", tf.Path))
 			return []Task{}, nil
 		}
 
 		slog.Info("Failed to open task file",
-			slog.String("Path", filePath),
+			slog.String("Path", tf.Path),
 			slog.Any("error", err))
 		return nil, err
 	}
