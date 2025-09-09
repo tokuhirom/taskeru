@@ -48,6 +48,8 @@ func Execute() {
 			_ = f.Close()
 		}()
 		slog.SetDefault(slog.New(slog.NewTextHandler(f, &slog.HandlerOptions{})))
+	} else {
+		slog.SetDefault(slog.New(slog.DiscardHandler))
 	}
 
 	if len(args) == 0 {
