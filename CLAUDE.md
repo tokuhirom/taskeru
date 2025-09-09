@@ -279,7 +279,7 @@ Claude Codeが実際にコマンドを実行してはならない。
    - ファイル名: `*_test.go`
    - 例: `task_test.go`, `storage_test.go`
 
-3. **テスト実行**
+2. **テスト実行**
    ```bash
    # 全テスト実行
    go test ./...
