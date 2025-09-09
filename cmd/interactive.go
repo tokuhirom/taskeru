@@ -169,8 +169,7 @@ func editTaskNoteInteractive(task *internal.Task) error {
 	if config.Editor.AddTimestamp {
 		now := time.Now()
 		// Format: YYYY-MM-DD(Day) HH:MM
-		weekday := now.Format("Mon")
-		timestamp := fmt.Sprintf("\n\n## %s(%s) %s\n\n", now.Format("2006-01-02"), weekday, now.Format("15:04"))
+		timestamp := now.Format("\n\n## 2006-01-02(Mon) 15:04\n\n")
 
 		// Append timestamp to existing note or create new note with timestamp
 		if noteContent != "" {
