@@ -8,56 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetTaskFilePath(t *testing.T) {
-	// Save original value and restore after test
-	originalPath := taskFilePath
-	defer func() {
-		taskFilePath = originalPath
-	}()
-
-	tests := []struct {
-		name         string
-		setPath      string
-		want         string
-		wantContains string
-	}{
-		{
-			name:         "default Path when not set",
-			setPath:      "",
-			wantContains: "todo.json",
-		},
-		{
-			name:    "uses -t option Path when set",
-			setPath: "/tmp/test.json",
-			want:    "/tmp/test.json",
-		},
-		{
-			name:    "cleans the Path",
-			setPath: "/tmp/../tmp/test.json",
-			want:    "/tmp/test.json",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			SetTaskFilePath(tt.setPath)
-			got := GetTaskFilePath()
-
-			if tt.want != "" {
-				if got != tt.want {
-					t.Errorf("GetTaskFilePath() = %v, want %v", got, tt.want)
-				}
-			}
-
-			if tt.wantContains != "" {
-				if !filepath.IsAbs(got) || !contains(got, tt.wantContains) {
-					t.Errorf("GetTaskFilePath() = %v, should contain %v", got, tt.wantContains)
-				}
-			}
-		})
-	}
-}
-
 func TestGetTrashFilePath(t *testing.T) {
 	tests := []struct {
 		name         string

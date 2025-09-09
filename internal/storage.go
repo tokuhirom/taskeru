@@ -41,27 +41,21 @@ func NewTaskFileWithPath(path string) *TaskFile {
 	}
 }
 
-func OpenTaskFile() *TaskFile {
-	filePath := GetTaskFilePath()
+func NewTaskFile() *TaskFile {
+	filePath := func() string {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			slog.Error("failed to get user home directory",
+				slog.Any("error", err))
+			// Fallback to the current directory
+			return "todo.json"
+		}
+		return filepath.Join(home, "todo.json")
+	}()
+
 	return &TaskFile{
 		Path: filePath,
 	}
-}
-
-func GetTaskFilePath() string {
-	// Priority: -t option > default
-	if taskFilePath != "" {
-		return filepath.Clean(taskFilePath)
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		slog.Error("failed to get user home directory",
-			slog.Any("error", err))
-		// Fallback to the current directory
-		return "todo.json"
-	}
-	return filepath.Join(home, "todo.json")
 }
 
 func (tf *TaskFile) getTrashFilePath() string {

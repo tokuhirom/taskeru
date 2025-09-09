@@ -27,7 +27,7 @@ func Execute() {
 	if taskFileName != "" {
 		internal.SetTaskFilePath(taskFileName)
 	}
-	taskFile := internal.OpenTaskFile()
+	taskFile := internal.NewTaskFile()
 
 	// Get command and remaining args
 	args := flag.Args()
