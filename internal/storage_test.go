@@ -134,9 +134,9 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 	}
 
 	// Save to trash
-	err := taskFile.SaveDeletedTasksToTrash(deletedTasks)
+	err := taskFile.saveDeletedTasksToTrash(deletedTasks)
 	if err != nil {
-		t.Fatalf("SaveDeletedTasksToTrash() error = %v", err)
+		t.Fatalf("saveDeletedTasksToTrash() error = %v", err)
 	}
 
 	// Check trash file exists
@@ -150,8 +150,8 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 		*NewTask("Deleted task 3"),
 	}
 
-	err = taskFile.SaveDeletedTasksToTrash(moreTasks)
-	require.NoError(t, err, "SaveDeletedTasksToTrash()")
+	err = taskFile.saveDeletedTasksToTrash(moreTasks)
+	require.NoError(t, err, "saveDeletedTasksToTrash()")
 
 	// Verify a trash file contains all deleted tasks
 	// Note: We can't easily verify the contents without exposing a load function for trash,

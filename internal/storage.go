@@ -218,8 +218,8 @@ func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated t
 	return tf.saveTasks(tasks)
 }
 
-// SaveDeletedTasksToTrash saves deleted tasks to trash.json
-func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
+// saveDeletedTasksToTrash saves deleted tasks to trash.json
+func (tf *TaskFile) saveDeletedTasksToTrash(deletedTasks []Task) error {
 	if len(deletedTasks) == 0 {
 		return nil
 	}
@@ -327,7 +327,7 @@ func (tf *TaskFile) DeleteTask(taskID string) error {
 		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
-	if err := tf.SaveDeletedTasksToTrash(deleted); err != nil {
+	if err := tf.saveDeletedTasksToTrash(deleted); err != nil {
 		return fmt.Errorf("failed to save deleted tasks to trash: %w", err)
 	}
 
