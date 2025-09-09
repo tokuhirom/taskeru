@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type InteractiveTaskList struct {
@@ -884,29 +885,12 @@ func (m *InteractiveTaskList) View() string {
 		return "No tasks found.\n\nPress q to quit."
 	}
 
+	header := lipgloss.NewStyle().MaxWidth(m.width).Render(m.renderHeader()) + "\n"
+	footer := lipgloss.NewStyle().MaxWidth(m.width).Render(m.renderFooter())
+
 	var s strings.Builder
-	if m.projectFilter != "" {
-		// Show project filter with color and count
-		projectColor := GetProjectColor(m.projectFilter)
-		totalCount := len(m.tasks)
-		// Calculate hidden count only for this project
-		allProjectTasks := FilterTasksByProject(m.allTasks, m.projectFilter)
-		hiddenCount := len(allProjectTasks) - totalCount
-		s.WriteString(fmt.Sprintf("Tasks for project: %s+%s\x1b[0m", projectColor, m.projectFilter))
-		if totalCount > 0 || hiddenCount > 0 {
-			s.WriteString(fmt.Sprintf(" (%d task", totalCount))
-			if totalCount != 1 {
-				s.WriteString("s")
-			}
-			if hiddenCount > 0 {
-				s.WriteString(fmt.Sprintf(", %d hidden", hiddenCount))
-			}
-			s.WriteString(")")
-		}
-		s.WriteString("\n\n")
-	} else {
-		s.WriteString("Tasks:\n\n")
-	}
+
+	s.WriteString(header)
 
 	for i, task := range m.tasks {
 		cursor := "  "
@@ -1006,6 +990,41 @@ func (m *InteractiveTaskList) View() string {
 		line += "\n"
 		s.WriteString(line)
 	}
+
+	s.WriteString(footer)
+
+	return s.String()
+}
+
+func (m *InteractiveTaskList) renderHeader() string {
+	var s strings.Builder
+	if m.projectFilter != "" {
+		// Show project filter with color and count
+		projectColor := GetProjectColor(m.projectFilter)
+		totalCount := len(m.tasks)
+		// Calculate hidden count only for this project
+		allProjectTasks := FilterTasksByProject(m.allTasks, m.projectFilter)
+		hiddenCount := len(allProjectTasks) - totalCount
+		s.WriteString(fmt.Sprintf("Tasks for project: %s+%s\x1b[0m", projectColor, m.projectFilter))
+		if totalCount > 0 || hiddenCount > 0 {
+			s.WriteString(fmt.Sprintf(" (%d task", totalCount))
+			if totalCount != 1 {
+				s.WriteString("s")
+			}
+			if hiddenCount > 0 {
+				s.WriteString(fmt.Sprintf(", %d hidden", hiddenCount))
+			}
+			s.WriteString(")")
+		}
+		s.WriteString("\n")
+	} else {
+		s.WriteString("Tasks:\n")
+	}
+	return s.String()
+}
+
+func (m *InteractiveTaskList) renderFooter() string {
+	var s strings.Builder
 
 	if m.searchMode {
 		// Show search input
@@ -1109,6 +1128,7 @@ func (m *InteractiveTaskList) View() string {
 			s.WriteString(" [ALL]")
 		}
 	}
+
 	if m.err != nil {
 		s.WriteString("\n\n\x1b[91mError: " + m.err.Error() + "\x1b[0m\n")
 	}
