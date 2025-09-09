@@ -56,8 +56,14 @@ func LoadTasks() ([]Task, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
+			slog.Info("No task file found, return empty tasks",
+				slog.String("path", filePath))
 			return []Task{}, nil
 		}
+
+		slog.Info("Failed to open task file",
+			slog.String("path", filePath),
+			slog.Any("error", err))
 		return nil, err
 	}
 	defer func() { _ = file.Close() }()
@@ -75,7 +81,10 @@ func LoadTasks() ([]Task, error) {
 
 		var task Task
 		if err := json.Unmarshal([]byte(line), &task); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: Skipping invalid JSON at line %d: %v\n", lineNum, err)
+			slog.Error("Failed to unmarshal task",
+				slog.Int("line", lineNum),
+				slog.String("line_content", line),
+				slog.Any("error", err))
 			continue
 		}
 
