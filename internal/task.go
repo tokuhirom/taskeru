@@ -40,7 +40,7 @@ func GetAllStatuses() []string {
 func NewTask(title string) *Task {
 	now := time.Now()
 	return &Task{
-		ID:      uuid.New().String(),
+		ID:      uuid.Must(uuid.NewV7()).String(),
 		Title:   title,
 		Created: now,
 		Updated: now,
@@ -262,7 +262,12 @@ func SortTasks(tasks []Task) {
 		}
 
 		// Same priority, sort by update time (newest first)
-		return tasks[i].Updated.After(tasks[j].Updated)
+		if !tasks[i].Updated.Equal(tasks[j].Updated) {
+			return tasks[i].Updated.After(tasks[j].Updated)
+		}
+
+		// Finally, sort by ID (newest first)
+		return tasks[i].ID < tasks[j].ID
 	})
 }
 

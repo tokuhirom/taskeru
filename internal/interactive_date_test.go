@@ -17,29 +17,33 @@ func TestDateEditMode(t *testing.T) {
 		*NewTask("Task with scheduled date"),
 	}
 
+	tasks[0].Priority = "A"
+
 	// Set existing dates
 	deadline := time.Now().AddDate(0, 0, 7) // 7 days from now
 	tasks[1].DueDate = &deadline
+	tasks[1].Priority = "B"
 
 	scheduled := time.Now().AddDate(0, 0, 3) // 3 days from now
 	tasks[2].ScheduledDate = &scheduled
+	tasks[2].Priority = "C"
 
 	taskFile := NewTaskFileForTesting(t)
-	for _, task := range tasks {
-		require.NoError(t, taskFile.AddTask(&task))
-	}
+	require.NoError(t, taskFile.AddTasks(tasks))
 
 	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
 	require.NoError(t, err)
+
+	require.Equal(t, 0, model.cursor)
+	require.Equal(t, "", model.dateEditMode)
+	require.Empty(t, model.dateEditBuffer, "Date edit buffer should be empty for task without deadline")
 
 	// Test entering deadline edit mode with D
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
 	interactiveModel := updatedModel.(*InteractiveTaskList)
 
-	if interactiveModel.dateEditMode != "deadline" {
-		t.Error("Should be in deadline edit mode after pressing D")
-	}
-
+	require.Equal(t, 0, model.cursor)
+	require.Equal(t, "deadline", interactiveModel.dateEditMode)
 	require.Empty(t, interactiveModel.dateEditBuffer, "Date edit buffer should be empty for task without deadline")
 
 	// Test ESC to cancel date edit

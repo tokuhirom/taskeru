@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/gofrs/flock v0.12.1
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tj/go-naturaldate v1.3.0

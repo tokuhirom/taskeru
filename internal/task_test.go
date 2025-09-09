@@ -2,6 +2,7 @@ package internal
 
 import (
 	"testing"
+	"time"
 )
 
 func TestFilterTasksByProject(t *testing.T) {
@@ -174,4 +175,47 @@ func TestTaskStatusMethods(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestSortTasks(t *testing.T) {
+	now := time.Now()
+	tasks := []Task{
+		{ID: "1", Title: "A", Status: StatusDONE, Priority: "C", Updated: now.Add(-5 * time.Hour)},
+		{ID: "2", Title: "B", Status: StatusTODO, Priority: "B", Updated: now.Add(-2 * time.Hour)},
+		{ID: "3", Title: "C", Status: StatusDOING, Priority: "A", Updated: now.Add(-1 * time.Hour)},
+		{ID: "4", Title: "D", Status: StatusWONTDO, Priority: "A", Updated: now.Add(-3 * time.Hour)},
+		{ID: "5", Title: "E", Status: StatusTODO, Priority: "", Updated: now.Add(-4 * time.Hour)},
+		{ID: "6", Title: "F", Status: StatusTODO, Priority: "A", Updated: now.Add(-6 * time.Hour)},
+	}
+
+	SortTasks(tasks)
+
+	// 期待される順序: active(優先度A→B→空), 完了(DONE/WONTDO)
+	expectedOrder := []string{"6", "3", "2", "5", "1", "4"}
+
+	for i, wantID := range expectedOrder {
+		if tasks[i].ID != wantID {
+			t.Errorf("SortTasks() order[%d] = %v, want %v", i, tasks[i].ID, wantID)
+		}
+	}
+
+	// Updated順のテスト: 同じ優先度・ステータスでUpdatedが新しい方が先
+	tasks2 := []Task{
+		{ID: "a", Status: StatusTODO, Priority: "A", Updated: now.Add(-1 * time.Hour)},
+		{ID: "b", Status: StatusTODO, Priority: "A", Updated: now.Add(-2 * time.Hour)},
+	}
+	SortTasks(tasks2)
+	if tasks2[0].ID != "a" || tasks2[1].ID != "b" {
+		t.Errorf("SortTasks() should sort by Updated desc when priority and status are same")
+	}
+
+	// ID順のテスト: Updatedも同じ場合はIDが大きい方が先
+	tasks3 := []Task{
+		{ID: "z", Status: StatusTODO, Priority: "A", Updated: now},
+		{ID: "y", Status: StatusTODO, Priority: "A", Updated: now},
+	}
+	SortTasks(tasks3)
+	if tasks3[0].ID != "y" && tasks3[1].ID != "z" {
+		t.Errorf("SortTasks() should sort by ID when all else is equal")
+	}
 }
