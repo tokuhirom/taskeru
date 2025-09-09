@@ -85,17 +85,17 @@ func TestGetTrashFilePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			taskFile := NewTaskFileWithPath(tt.setPath)
-			got := taskFile.GetTrashFilePath()
+			got := taskFile.getTrashFilePath()
 
 			if tt.want != "" {
 				if got != tt.want {
-					t.Errorf("GetTrashFilePath() = %v, want %v", got, tt.want)
+					t.Errorf("getTrashFilePath() = %v, want %v", got, tt.want)
 				}
 			}
 
 			if tt.wantContains != "" {
 				if !contains(got, tt.wantContains) {
-					t.Errorf("GetTrashFilePath() = %v, should contain %v", got, tt.wantContains)
+					t.Errorf("getTrashFilePath() = %v, should contain %v", got, tt.wantContains)
 				}
 			}
 		})
@@ -189,7 +189,7 @@ func TestSaveDeletedTasksToTrash(t *testing.T) {
 	}
 
 	// Check trash file exists
-	trashFile := taskFile.GetTrashFilePath()
+	trashFile := taskFile.getTrashFilePath()
 	if _, err := os.Stat(trashFile); os.IsNotExist(err) {
 		t.Fatalf("Trash file was not created: %v", trashFile)
 	}

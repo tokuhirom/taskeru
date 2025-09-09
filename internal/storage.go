@@ -64,10 +64,8 @@ func GetTaskFilePath() string {
 	return filepath.Join(home, "todo.json")
 }
 
-func (tf *TaskFile) GetTrashFilePath() string {
+func (tf *TaskFile) getTrashFilePath() string {
 	// We should not expose this method, right?
-
-	// If -t option is used, put trash file in the same directory
 	if tf.Path != "" {
 		dir := filepath.Dir(tf.Path)
 		base := filepath.Base(tf.Path)
@@ -237,7 +235,7 @@ func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
 		return nil
 	}
 
-	trashPath := tf.GetTrashFilePath()
+	trashPath := tf.getTrashFilePath()
 
 	// Load existing trash tasks
 	existingTrash := []Task{}
