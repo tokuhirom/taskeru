@@ -1,9 +1,7 @@
 package internal
 
 import (
-	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -178,56 +176,6 @@ func FilterVisibleTasks(tasks []Task, showAll bool) []Task {
 		}
 	}
 	return visible
-}
-
-// ExtractProjectsFromTitle extracts project tags (+project) from the end of title and returns cleaned title and projects
-func ExtractProjectsFromTitle(title string) (string, []string) {
-	// Extract project tags only from the end of the string
-	// Pattern: (whitespace or start) followed by +project at the end
-	projectEndRegex := regexp.MustCompile(`(\s+|^)\+(\S+)\s*$`)
-
-	var projects []string
-	cleanTitle := title
-
-	// Keep extracting project tags from the end until no more are found
-	for {
-		match := projectEndRegex.FindStringSubmatch(cleanTitle)
-		if match == nil {
-			break
-		}
-
-		// Add project to the beginning (since we're extracting from the end)
-		// match[2] is the project name (match[1] is the whitespace or start)
-		projects = append([]string{match[2]}, projects...)
-
-		// Remove the matched project tag from the string
-		cleanTitle = projectEndRegex.ReplaceAllString(cleanTitle, "")
-	}
-
-	cleanTitle = strings.TrimSpace(cleanTitle)
-
-	return cleanTitle, projects
-}
-
-// ExtractDeadlineFromTitle extracts deadline (due:date) from title and returns cleaned title and deadline
-func ExtractDeadlineFromTitle(title string) (string, *time.Time) {
-	// Use the new enhanced parser with natural language support
-	return ExtractDeadlineFromTitleV2(title)
-}
-
-// nextWeekday returns the next occurrence of the given weekday
-func nextWeekday(from time.Time, weekday time.Weekday) time.Time {
-	days := int(weekday - from.Weekday())
-	if days <= 0 {
-		days += 7
-	}
-	return from.AddDate(0, 0, days)
-}
-
-// ExtractScheduledDateFromTitle extracts scheduled date (scheduled:date or sched:date) from title
-func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
-	// Use the new enhanced parser with natural language support
-	return ExtractScheduledDateFromTitleV2(title)
 }
 
 // GetAllProjects returns all unique projects from a list of tasks

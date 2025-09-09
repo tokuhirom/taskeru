@@ -207,34 +207,3 @@ func TestExtractScheduledDateFromTitleV2WithNaturalLanguage(t *testing.T) {
 		})
 	}
 }
-
-func TestCombinedNaturalLanguageDateExtraction(t *testing.T) {
-	// Test combining both scheduled and due dates with natural language
-	input := "Complex task scheduled:next monday due:next friday +work +urgent"
-
-	// Extract scheduled date first
-	cleanTitle, scheduled := ExtractScheduledDateFromTitleV2(input)
-	t.Logf("After scheduled extraction: %q", cleanTitle)
-	if scheduled == nil {
-		t.Error("Failed to extract scheduled date")
-	}
-
-	// Then extract deadline
-	cleanTitle, deadline := ExtractDeadlineFromTitleV2(cleanTitle)
-	t.Logf("After deadline extraction: %q", cleanTitle)
-	if deadline == nil {
-		t.Error("Failed to extract deadline")
-	}
-
-	// Then extract projects
-	cleanTitle, projects := ExtractProjectsFromTitle(cleanTitle)
-	t.Logf("After projects extraction: %q, projects=%v", cleanTitle, projects)
-
-	if cleanTitle != "Complex task" {
-		t.Errorf("Expected title 'Complex task', got %q", cleanTitle)
-	}
-
-	if len(projects) != 2 || projects[0] != "work" || projects[1] != "urgent" {
-		t.Errorf("Expected projects [work, urgent], got %v", projects)
-	}
-}
