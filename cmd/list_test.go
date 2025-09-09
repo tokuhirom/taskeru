@@ -4,19 +4,13 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"taskeru/internal"
 )
 
 func TestListCommandWithProjectFilter(t *testing.T) {
-	// Create temporary directory for test
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test_tasks.json")
-
-	// Set the test file path
-	internal.SetTaskFilePath(testFile)
+	taskFile := internal.NewTaskFileForTesting(t)
 
 	// Create test tasks with different projects
 	tasks := []internal.Task{
@@ -35,7 +29,7 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 	tasks[4].Projects = []string{"personal", "home"}
 
 	// Save tasks
-	err := internal.SaveTasks(tasks)
+	err := taskFile.SaveTasks(tasks)
 	if err != nil {
 		t.Fatalf("Failed to save test tasks: %v", err)
 	}
@@ -86,7 +80,7 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 			os.Stdout = w
 
 			// Run list command with filter
-			err := ListCommand(tt.projectFilter)
+			err := ListCommand(tt.projectFilter, taskFile)
 			if err != nil {
 				t.Errorf("ListCommand() error = %v", err)
 			}
@@ -143,12 +137,7 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 }
 
 func TestListCommandWithCompletedTasksAndProjectFilter(t *testing.T) {
-	// Create temporary directory for test
-	tmpDir := t.TempDir()
-	testFile := filepath.Join(tmpDir, "test_completed_tasks.json")
-
-	// Set the test file path
-	internal.SetTaskFilePath(testFile)
+	taskFile := internal.NewTaskFileForTesting(t)
 
 	// Create test tasks with different projects and statuses
 	tasks := []internal.Task{
@@ -170,7 +159,7 @@ func TestListCommandWithCompletedTasksAndProjectFilter(t *testing.T) {
 	tasks[3].CompletedAt = &oldTime
 
 	// Save tasks
-	err := internal.SaveTasks(tasks)
+	err := taskFile.SaveTasks(tasks)
 	if err != nil {
 		t.Fatalf("Failed to save test tasks: %v", err)
 	}
@@ -181,7 +170,7 @@ func TestListCommandWithCompletedTasksAndProjectFilter(t *testing.T) {
 	os.Stdout = w
 
 	// Run list command with work filter
-	err = ListCommand("work")
+	err = ListCommand("work", taskFile)
 	if err != nil {
 		t.Errorf("ListCommand() error = %v", err)
 	}

@@ -41,7 +41,7 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 					}
 				}
 
-				if err := internal.SaveTasks(updatedTasks); err != nil {
+				if err := taskFile.SaveTasks(updatedTasks); err != nil {
 					return fmt.Errorf("failed to save tasks: %w", err)
 				}
 			}
@@ -147,7 +147,7 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 				}
 			}
 
-			if err := internal.SaveTasks(updatedTasks); err != nil {
+			if err := taskFile.SaveTasks(updatedTasks); err != nil {
 				return fmt.Errorf("failed to save tasks: %w", err)
 			}
 

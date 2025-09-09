@@ -218,7 +218,7 @@ func UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updat
 		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
-	return SaveTasks(tasks)
+	return taskFile.SaveTasks(tasks)
 }
 
 // SaveDeletedTasksToTrash saves deleted tasks to trash.json

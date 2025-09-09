@@ -50,7 +50,7 @@ func Execute() {
 	case "add", "a":
 		err = AddCommand(nonFlagArgs)
 	case "ls", "list", "l":
-		err = ListCommand(projectFilter)
+		err = ListCommand(projectFilter, taskFile)
 	case "edit", "e":
 		err = EditCommand(taskFile)
 	case "httpd":
