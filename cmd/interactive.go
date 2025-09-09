@@ -36,7 +36,6 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 		var modified bool
 		var taskToEdit *internal.Task
 		var deletedTaskIDs []string
-		var newTaskTitle string
 
 		// Handle task deletion
 		if len(deletedTaskIDs) > 0 {
@@ -58,19 +57,6 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 
 			// Mark as modified to trigger save
 			modified = true
-		}
-
-		// Handle new task creation
-		if newTaskTitle != "" {
-			// Extract projects and scheduled/due dates from title
-			newTask := internal.ParseTask(newTaskTitle)
-
-			if err := taskFile.AddTask(newTask); err != nil {
-				return fmt.Errorf("failed to create task: %w", err)
-			}
-
-			fmt.Printf("Task created: %s\n", newTask.String())
-			continue // Go back to the list after creating
 		}
 
 		// Handle edit task
