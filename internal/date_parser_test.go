@@ -116,7 +116,7 @@ func TestExtractDeadlineFromTitleV2WithNaturalLanguage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
-			cleanTitle, deadline := ExtractDeadlineFromTitleV2(tt.input)
+			cleanTitle, deadline := ExtractDeadlineFromTitle(tt.input)
 
 			if cleanTitle != tt.expectedTitle {
 				t.Errorf("Expected title %q, got %q", tt.expectedTitle, cleanTitle)
@@ -183,7 +183,7 @@ func TestExtractScheduledDateFromTitleV2WithNaturalLanguage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
-			cleanTitle, scheduled := ExtractScheduledDateFromTitleV2(tt.input)
+			cleanTitle, scheduled := ExtractScheduledDateFromTitle(tt.input)
 
 			if cleanTitle != tt.expectedTitle {
 				t.Errorf("Expected title %q, got %q", tt.expectedTitle, cleanTitle)

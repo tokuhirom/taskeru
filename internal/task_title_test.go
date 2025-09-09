@@ -109,14 +109,14 @@ func TestCombinedNaturalLanguageDateExtraction(t *testing.T) {
 	input := "Complex task scheduled:next monday due:next friday +work +urgent"
 
 	// Extract scheduled date first
-	cleanTitle, scheduled := ExtractScheduledDateFromTitleV2(input)
+	cleanTitle, scheduled := ExtractScheduledDateFromTitle(input)
 	t.Logf("After scheduled extraction: %q", cleanTitle)
 	if scheduled == nil {
 		t.Error("Failed to extract scheduled date")
 	}
 
 	// Then extract deadline
-	cleanTitle, deadline := ExtractDeadlineFromTitleV2(cleanTitle)
+	cleanTitle, deadline := ExtractDeadlineFromTitle(cleanTitle)
 	t.Logf("After deadline extraction: %q", cleanTitle)
 	if deadline == nil {
 		t.Error("Failed to extract deadline")

@@ -37,18 +37,6 @@ func ExtractProjectsFromTitle(title string) (string, []string) {
 
 // ExtractDeadlineFromTitle extracts deadline (due:date) from title and returns cleaned title and deadline
 func ExtractDeadlineFromTitle(title string) (string, *time.Time) {
-	// Use the new enhanced parser with natural language support
-	return ExtractDeadlineFromTitleV2(title)
-}
-
-// ExtractScheduledDateFromTitle extracts scheduled date (scheduled:date or sched:date) from title
-func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
-	// Use the new enhanced parser with natural language support
-	return ExtractScheduledDateFromTitleV2(title)
-}
-
-// ExtractDeadlineFromTitleV2 extracts deadline with enhanced natural language support
-func ExtractDeadlineFromTitleV2(title string) (string, *time.Time) {
 	// First try the enhanced multi-word pattern for natural language dates
 	// Match everything after due: until we hit scheduled: or a project tag or end of string
 	naturalRegex := regexp.MustCompile(`\s+due:([^+]+?)(\s+(?:due:|scheduled:|\+)|$)`)
@@ -94,8 +82,8 @@ func ExtractDeadlineFromTitleV2(title string) (string, *time.Time) {
 	return cleanTitle, deadline
 }
 
-// ExtractScheduledDateFromTitleV2 extracts scheduled date with enhanced natural language support
-func ExtractScheduledDateFromTitleV2(title string) (string, *time.Time) {
+// ExtractScheduledDateFromTitle extracts scheduled date (scheduled:date or sched:date) from title
+func ExtractScheduledDateFromTitle(title string) (string, *time.Time) {
 	// First try the enhanced multi-word pattern for natural language dates
 	// Match everything after scheduled: or sched: until we hit due: or a project tag or end of string
 	naturalRegex := regexp.MustCompile(`\s+(scheduled|sched):([^+]+?)(\s+(?:due:|scheduled:|sched:|\+)|$)`)
