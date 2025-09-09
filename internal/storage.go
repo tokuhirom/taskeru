@@ -13,14 +13,6 @@ import (
 	"github.com/gofrs/flock"
 )
 
-// Global variable to store the task file Path from -t option
-var taskFilePath string
-
-// SetTaskFilePath sets the global task file Path (from -t option)
-func SetTaskFilePath(path string) {
-	taskFilePath = path
-}
-
 type TaskFile struct {
 	Path string
 }
@@ -28,14 +20,12 @@ type TaskFile struct {
 func NewTaskFileForTesting(t *testing.T) *TaskFile {
 	tmpDir := t.TempDir()
 	filePath := filepath.Join(tmpDir, "todo.json")
-	SetTaskFilePath(filePath) // TODO: TEMPORARY HACK. I'll remove this later.
 	return &TaskFile{
 		Path: filePath,
 	}
 }
 
 func NewTaskFileWithPath(path string) *TaskFile {
-	SetTaskFilePath(path) // TODO: TEMPORARY HACK. I'll remove this later.
 	return &TaskFile{
 		Path: path,
 	}

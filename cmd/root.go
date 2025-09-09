@@ -23,11 +23,13 @@ func Execute() {
 	// Parse all flags
 	flag.Parse()
 
-	// Set task file path if specified
-	if taskFileName != "" {
-		internal.SetTaskFilePath(taskFileName)
-	}
-	taskFile := internal.NewTaskFile()
+	taskFile := func() *internal.TaskFile {
+		if taskFileName == "" {
+			return internal.NewTaskFile()
+		} else {
+			return internal.NewTaskFileWithPath(taskFileName)
+		}
+	}()
 
 	// Get command and remaining args
 	args := flag.Args()

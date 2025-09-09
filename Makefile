@@ -1,10 +1,10 @@
-.PHONY: all test clean
+.PHONY: all test clean taskeru
 
 # Default target - build the binary
 all: taskeru
 
 # Build the binary
-taskeru: main.go cmd/httpd.go
+taskeru:
 	go build -o taskeru
 
 # Run all tests
