@@ -66,7 +66,7 @@ func TestSaveAndLoadTasks(t *testing.T) {
 	tasks[1].SetStatus(StatusDONE)
 
 	// Save tasks
-	err := taskFile.SaveTasks(tasks)
+	err := taskFile.AddTasks(tasks)
 	if err != nil {
 		t.Fatalf("SaveTasks() error = %v", err)
 	}

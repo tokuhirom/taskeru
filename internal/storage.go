@@ -111,7 +111,7 @@ func (tf *TaskFile) LoadTasks() ([]Task, error) {
 	return tasks, nil
 }
 
-func (tf *TaskFile) SaveTasks(tasks []Task) error {
+func (tf *TaskFile) saveTasks(tasks []Task) error {
 	tempFile, err := os.CreateTemp(filepath.Dir(tf.Path), ".taskeru-*.tmp")
 	if err != nil {
 		return err
@@ -181,7 +181,7 @@ func (tf *TaskFile) AddTasks(newTasks []Task) error {
 	}
 
 	tasks = append(tasks, newTasks...)
-	return tf.SaveTasks(tasks)
+	return tf.saveTasks(tasks)
 }
 
 func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
@@ -215,7 +215,7 @@ func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated t
 		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
-	return tf.SaveTasks(tasks)
+	return tf.saveTasks(tasks)
 }
 
 // SaveDeletedTasksToTrash saves deleted tasks to trash.json

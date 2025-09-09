@@ -71,9 +71,9 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 				}
 			}
 
-			if err := taskFile.SaveTasks(updatedTasks); err != nil {
-				return fmt.Errorf("failed to save tasks: %w", err)
-			}
+			//if err := taskFile.SaveTasks(updatedTasks); err != nil {
+			//	return fmt.Errorf("failed to save tasks: %w", err)
+			//}
 
 			if len(deletedTaskIDs) > 0 {
 				fmt.Printf("%d task(s) deleted and moved to trash.\n", len(deletedTaskIDs))

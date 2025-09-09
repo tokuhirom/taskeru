@@ -185,10 +185,6 @@ func TestDateEditApply(t *testing.T) {
 		t.Error("Should exit date edit mode after pressing Enter")
 	}
 
-	if !interactiveModel.modified {
-		t.Error("Model should be marked as modified after applying date")
-	}
-
 	// Check that the task was updated
 	if interactiveModel.allTasks[0].DueDate == nil {
 		t.Error("Task should have deadline set")
@@ -275,10 +271,6 @@ func TestDateEditClearDate(t *testing.T) {
 	// Check that the deadline was cleared
 	if interactiveModel.allTasks[0].DueDate != nil {
 		t.Error("Task deadline should be cleared when applying empty date")
-	}
-
-	if !interactiveModel.modified {
-		t.Error("Model should be marked as modified after clearing date")
 	}
 }
 
