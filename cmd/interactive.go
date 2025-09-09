@@ -74,30 +74,13 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 		// Handle new task creation
 		if newTaskTitle != "" {
 			// Extract projects and scheduled/due dates from title
-			cleanTitle, projects := internal.ExtractProjectsFromTitle(newTaskTitle)
-			cleanTitle, scheduledDate := internal.ExtractScheduledDateFromTitle(cleanTitle)
-			cleanTitle, dueDate := internal.ExtractDeadlineFromTitle(cleanTitle)
-
-			newTask := internal.NewTask(cleanTitle)
-			newTask.Projects = projects
-			newTask.ScheduledDate = scheduledDate
-			newTask.DueDate = dueDate
+			newTask := internal.ParseTask(newTaskTitle)
 
 			if err := taskFile.AddTask(newTask); err != nil {
 				return fmt.Errorf("failed to create task: %w", err)
 			}
 
-			fmt.Printf("Task created: %s", cleanTitle)
-			if len(projects) > 0 {
-				fmt.Printf(" [Projects: %s]", strings.Join(projects, ", "))
-			}
-			if scheduledDate != nil {
-				fmt.Printf(" [Scheduled: %s]", scheduledDate.Format("2006-01-02"))
-			}
-			if dueDate != nil {
-				fmt.Printf(" [Due: %s]", dueDate.Format("2006-01-02"))
-			}
-			fmt.Println()
+			fmt.Printf("Task created: %s\n", newTask.String())
 			continue // Go back to the list after creating
 		}
 
