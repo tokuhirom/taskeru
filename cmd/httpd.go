@@ -81,7 +81,7 @@ func init() {
 	}
 }
 
-func HttpdCommand(addr string) error {
+func HttpdCommand(addr string, taskFile *internal.TaskFile) error {
 	if addr == "" {
 		addr = "127.0.0.1:7676"
 	}
@@ -90,13 +90,15 @@ func HttpdCommand(addr string) error {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+	controller := NewController(taskFile)
+
 	// Routes
-	r.Get("/", kanbanHandler)
-	r.Get("/kanban", kanbanHandler)
-	r.Get("/daily", dailyReportHandler)
-	r.Get("/daily/{year}/{month}", dailyReportHandler)
-	r.Get("/api/tasks", apiTasksHandler)
-	r.Get("/static/style.css", styleHandler)
+	r.Get("/", controller.kanbanHandler)
+	r.Get("/kanban", controller.kanbanHandler)
+	r.Get("/daily", controller.dailyReportHandler)
+	r.Get("/daily/{year}/{month}", controller.dailyReportHandler)
+	r.Get("/api/tasks", controller.apiTasksHandler)
+	r.Get("/static/style.css", controller.styleHandler)
 
 	fmt.Printf("Starting HTTP server on http://%s\n", addr)
 	fmt.Println("Press Ctrl+C to stop")
@@ -104,8 +106,16 @@ func HttpdCommand(addr string) error {
 	return http.ListenAndServe(addr, r)
 }
 
-func kanbanHandler(w http.ResponseWriter, r *http.Request) {
-	tasks, err := internal.LoadTasks()
+type Controller struct {
+	taskFile *internal.TaskFile
+}
+
+func NewController(taskFile *internal.TaskFile) *Controller {
+	return &Controller{taskFile: taskFile}
+}
+
+func (c *Controller) kanbanHandler(w http.ResponseWriter, r *http.Request) {
+	tasks, err := c.taskFile.LoadTasks()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,7 +142,7 @@ func kanbanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func dailyReportHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) dailyReportHandler(w http.ResponseWriter, r *http.Request) {
 	year := chi.URLParam(r, "year")
 	month := chi.URLParam(r, "month")
 
@@ -149,7 +159,7 @@ func dailyReportHandler(w http.ResponseWriter, r *http.Request) {
 
 	targetDate := time.Date(targetYear, time.Month(targetMonth), 1, 0, 0, 0, 0, time.Local)
 
-	tasks, err := internal.LoadTasks()
+	tasks, err := c.taskFile.LoadTasks()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -190,8 +200,8 @@ func dailyReportHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func apiTasksHandler(w http.ResponseWriter, r *http.Request) {
-	tasks, err := internal.LoadTasks()
+func (c *Controller) apiTasksHandler(w http.ResponseWriter, r *http.Request) {
+	tasks, err := c.taskFile.LoadTasks()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -201,7 +211,7 @@ func apiTasksHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(tasks)
 }
 
-func styleHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) styleHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css")
 	_, _ = w.Write([]byte(cssStyles))
 }

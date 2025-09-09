@@ -81,7 +81,7 @@ func TestStyleHandler(t *testing.T) {
 	req := httptest.NewRequest("GET", "/static/style.css", nil)
 	w := httptest.NewRecorder()
 
-	styleHandler(w, req)
+	NewController(internal.OpenTaskFile()).styleHandler(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {

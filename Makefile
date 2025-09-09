@@ -4,7 +4,7 @@
 all: taskeru
 
 # Build the binary
-taskeru:
+taskeru: main.go cmd/httpd.go
 	go build -o taskeru
 
 # Run all tests

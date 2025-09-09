@@ -52,13 +52,13 @@ func Execute() {
 	case "ls", "list", "l":
 		err = ListCommand(projectFilter)
 	case "edit", "e":
-		err = EditCommand()
+		err = EditCommand(taskFile)
 	case "httpd":
 		addr := ""
 		if len(nonFlagArgs) > 0 {
 			addr = nonFlagArgs[0]
 		}
-		err = HttpdCommand(addr)
+		err = HttpdCommand(addr, taskFile)
 	case "init-config":
 		err = InitConfigCommand()
 	case "help", "-h", "--help":
