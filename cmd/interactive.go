@@ -38,34 +38,6 @@ func InteractiveCommandWithFilter(projectFilter string, taskFile *internal.TaskF
 		var taskToEdit *internal.Task
 		var deletedTaskIDs []string
 		var newTaskTitle string
-		var shouldReload bool
-
-		// Handle reload
-		if shouldReload {
-			// Save modifications before reloading if needed
-			if modified {
-				// Update the Updated timestamp for modified tasks
-				now := time.Now()
-				for i := range updatedTasks {
-					for j := range tasks {
-						if updatedTasks[i].ID == tasks[j].ID &&
-							(updatedTasks[i].Status != tasks[j].Status ||
-								updatedTasks[i].Priority != tasks[j].Priority ||
-								updatedTasks[i].DueDate != tasks[j].DueDate ||
-								updatedTasks[i].ScheduledDate != tasks[j].ScheduledDate) {
-							updatedTasks[i].Updated = now
-							break
-						}
-					}
-				}
-
-				if err := taskFile.SaveTasks(updatedTasks); err != nil {
-					return fmt.Errorf("failed to save tasks: %w", err)
-				}
-			}
-			fmt.Println("Reloading tasks...")
-			continue
-		}
 
 		// Handle task deletion
 		if len(deletedTaskIDs) > 0 {

@@ -23,7 +23,6 @@ type InteractiveTaskList struct {
 	inputBuffer       string
 	inputCursor       int // Cursor position in input buffer
 	newTaskTitle      string
-	shouldReload      bool
 	searchMode        bool
 	searchQuery       string
 	searchCursor      int
@@ -71,7 +70,6 @@ func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) 
 		inputBuffer:       "",
 		inputCursor:       0,
 		newTaskTitle:      "",
-		shouldReload:      false,
 		searchMode:        false,
 		searchQuery:       "",
 		searchCursor:      0,
@@ -1122,10 +1120,6 @@ func (m InteractiveTaskList) GetDeletedTaskIDs() []string {
 
 func (m InteractiveTaskList) GetNewTaskTitle() string {
 	return m.newTaskTitle
-}
-
-func (m InteractiveTaskList) ShouldReload() bool {
-	return m.shouldReload
 }
 
 // updateMatches updates which tasks match the current search query
