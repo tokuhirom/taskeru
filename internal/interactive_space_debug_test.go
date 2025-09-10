@@ -5,6 +5,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSpaceKeyBehavior(t *testing.T) {
@@ -25,7 +26,12 @@ func TestSpaceKeyBehavior(t *testing.T) {
 	tasks[1].Status = StatusDONE
 	tasks[1].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskList(tasks)
+	// Add tasks to a TaskFile
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	t.Logf("Initial state:")
 	t.Logf("  All tasks count: %d", len(model.allTasks))
@@ -38,7 +44,7 @@ func TestSpaceKeyBehavior(t *testing.T) {
 
 	// Move cursor to second visible task (Task 3)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	t.Logf("\nAfter moving cursor to position 1:")
 	t.Logf("  Cursor position: %d", interactiveModel.cursor)
@@ -49,7 +55,7 @@ func TestSpaceKeyBehavior(t *testing.T) {
 	// Toggle with space
 	task3ID := interactiveModel.tasks[interactiveModel.cursor].ID
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	t.Logf("\nAfter pressing space:")
 	t.Logf("  Visible tasks count: %d", len(interactiveModel.tasks))

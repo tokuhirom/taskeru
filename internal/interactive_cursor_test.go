@@ -5,15 +5,16 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	// Create test tasks with different timestamps to ensure consistent ordering
 	now := time.Now()
 	tasks := []Task{
-		*NewTask("Task 1"),
-		*NewTask("Task 2"),
-		*NewTask("Task 3"),
+		*ParseTask("Task 1"),
+		*ParseTask("Task 2"),
+		*ParseTask("Task 3"),
 	}
 
 	// Set different updated times to ensure predictable sort order
@@ -32,7 +33,13 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 	tasks[1].Status = StatusDONE
 	tasks[1].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+	require.NoError(t, taskFile.AddTask(&tasks[1]))
+	require.NoError(t, taskFile.AddTask(&tasks[2]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Should only see 2 tasks (Task 1 and Task 3)
 	if len(model.tasks) != 2 {
@@ -41,7 +48,7 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 
 	// Move cursor to second visible task (Task 3)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.cursor != 1 {
 		t.Errorf("Cursor should be at position 1, got %d", interactiveModel.cursor)
@@ -60,7 +67,7 @@ func TestCursorStaysInPlaceWhenTaskBecomesHidden(t *testing.T) {
 
 	// Now change Task 3 to DONE (it will stay visible as it's completed today)
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	// Task 3 should still be visible (completed today)
 	// So we still have 2 visible tasks
@@ -112,7 +119,13 @@ func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
 	tasks[2].Status = StatusDONE
 	tasks[2].CompletedAt = &oldTime
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Should see 3 visible tasks initially
 	if len(model.tasks) != 3 {
@@ -124,7 +137,7 @@ func TestCursorAtEndWhenLastTaskBecomesHidden(t *testing.T) {
 
 	// Toggle Task 3 to DONE with space (will stay visible as completed today)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Task 3 should still be visible (completed today)
 	if len(interactiveModel.tasks) != 3 {
@@ -155,7 +168,13 @@ func TestCursorFollowsTaskWhenStatusChangesButStaysVisible(t *testing.T) {
 	tasks[2].Priority = "low"
 	tasks[2].Status = StatusTODO
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	for _, task := range tasks {
+		require.NoError(t, taskFile.AddTask(&task))
+	}
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 	model.showAll = true // Ensure all tasks stay visible
 
 	// Find the "Normal task" position
@@ -172,7 +191,7 @@ func TestCursorFollowsTaskWhenStatusChangesButStaysVisible(t *testing.T) {
 
 	// Change status to DOING (which might change sort order)
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Find where "Normal task" ended up after sorting
 	normalTaskNewIdx := -1
@@ -204,7 +223,11 @@ func TestMultipleStatusChangesKeepCursorStable(t *testing.T) {
 		tasks[i].Status = StatusTODO
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	// Move to Task B (index 1)
 	model.cursor = 1
@@ -213,15 +236,14 @@ func TestMultipleStatusChangesKeepCursorStable(t *testing.T) {
 	statuses := GetAllStatuses()
 	for i := 0; i < len(statuses); i++ {
 		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-		interactiveModel := updatedModel.(InteractiveTaskList)
-		model = &interactiveModel
+		interactiveModel := updatedModel.(*InteractiveTaskList)
 
 		// Cursor should either:
 		// 1. Follow the task if it's still visible
 		// 2. Stay at the same index if task became hidden
-		if model.cursor >= len(model.tasks) && len(model.tasks) > 0 {
+		if interactiveModel.cursor >= len(interactiveModel.tasks) && len(interactiveModel.tasks) > 0 {
 			t.Errorf("Cursor %d is out of bounds (tasks count: %d) after %d status changes",
-				model.cursor, len(model.tasks), i+1)
+				interactiveModel.cursor, len(interactiveModel.tasks), i+1)
 		}
 	}
 }

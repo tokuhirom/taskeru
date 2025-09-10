@@ -2,27 +2,29 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 type InteractiveTaskList struct {
 	allTasks          []Task
 	tasks             []Task
 	cursor            int
-	modified          bool
 	showAll           bool
 	quit              bool
 	confirmDelete     bool
-	deletedTaskIDs    []string
 	inputMode         bool
 	inputBuffer       string
 	inputCursor       int // Cursor position in input buffer
 	newTaskTitle      string
-	shouldReload      bool
 	searchMode        bool
 	searchQuery       string
 	searchCursor      int
@@ -35,40 +37,22 @@ type InteractiveTaskList struct {
 	projectCursor     int    // Cursor position in project list
 	width             int    // Terminal width
 	height            int    // Terminal height
+	taskFile          *TaskFile
+	err               error
 }
 
-func NewInteractiveTaskList(tasks []Task) *InteractiveTaskList {
-	return NewInteractiveTaskListWithFilter(tasks, "")
-}
-
-func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *InteractiveTaskList {
-	// Sort tasks before displaying
-	SortTasks(tasks)
-
-	// Apply project filter if specified
-	var filteredByProject []Task
-	if projectFilter != "" {
-		filteredByProject = FilterTasksByProject(tasks, projectFilter)
-	} else {
-		filteredByProject = tasks
-	}
-
-	// Then apply visibility filter
-	filteredTasks := FilterVisibleTasks(filteredByProject, false)
-
-	return &InteractiveTaskList{
-		allTasks:          tasks,
-		tasks:             filteredTasks,
+func NewInteractiveTaskListWithFilter(taskFile *TaskFile, projectFilter string) (*InteractiveTaskList, error) {
+	m := &InteractiveTaskList{
+		taskFile:          taskFile,
+		allTasks:          []Task{},
+		tasks:             []Task{},
 		cursor:            0,
-		modified:          false,
 		showAll:           false,
 		confirmDelete:     false,
-		deletedTaskIDs:    []string{},
 		inputMode:         false,
 		inputBuffer:       "",
 		inputCursor:       0,
 		newTaskTitle:      "",
-		shouldReload:      false,
 		searchMode:        false,
 		searchQuery:       "",
 		searchCursor:      0,
@@ -82,15 +66,63 @@ func NewInteractiveTaskListWithFilter(tasks []Task, projectFilter string) *Inter
 		width:             80, // Default width
 		height:            24, // Default height
 	}
+
+	if err := m.ReloadTasks(); err != nil {
+		return nil, fmt.Errorf("failed to load tasks: %w", err)
+	}
+	return m, nil
 }
 
-func (m InteractiveTaskList) Init() tea.Cmd {
+func (m *InteractiveTaskList) ReloadTasks() error {
+	taskID := ""
+	if m.cursor < len(m.tasks) {
+		taskID = m.tasks[m.cursor].ID
+	}
+
+	// Sort tasks before displaying
+	tasks, err := m.taskFile.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+	SortTasks(tasks)
+
+	// Apply project filter if specified
+	var filteredByProject []Task
+	if m.projectFilter != "" {
+		filteredByProject = FilterTasksByProject(tasks, m.projectFilter)
+	} else {
+		filteredByProject = tasks
+	}
+
+	// Then apply a visibility filter
+	m.tasks = FilterVisibleTasks(filteredByProject, false)
+	m.allTasks = tasks
+
+	// Try to maintain the cursor position on the same task
+	m.cursor = 0
+	if taskID != "" {
+		for j, task := range m.tasks {
+			if task.ID == taskID {
+				m.cursor = j
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+func (m *InteractiveTaskList) Init() tea.Cmd {
+	if err := m.ReloadTasks(); err != nil {
+		m.err = err
+	}
+
 	return nil
 }
 
 // truncateTaskLine truncates the task line to fit within the terminal width
 // It prioritizes showing project names by truncating the title if necessary
-func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string, status string, priority string, title string, projects []string, additionalInfo string) string {
+func (m *InteractiveTaskList) truncateTaskLine(cursor string, statusColor string, status string, priority string, title string, projects []string, additionalInfo string) string {
 	// Calculate base components length
 	baseLen := len(cursor) + len(status) + 1 + len(priority) + 1 // cursor + status + space + priority + space
 
@@ -116,17 +148,17 @@ func (m InteractiveTaskList) truncateTaskLine(cursor string, statusColor string,
 	// Truncate title if necessary
 	displayTitle := title
 	if availableWidth > 10 && len(title) > availableWidth { // Keep at least 10 chars for title
-		displayTitle = title[:availableWidth-3] + "..."
+		displayTitle = runewidth.Truncate(title, availableWidth-3, "...")
 	} else if availableWidth <= 10 && len(title) > 10 {
 		// If very limited space, show minimal title
-		displayTitle = title[:7] + "..."
+		displayTitle = runewidth.Truncate(title, 7, "...")
 	}
 
 	return fmt.Sprintf("%s%s%-7s %s %s", cursor, statusColor, status, priority, displayTitle)
 }
 
 // stripAnsiCodes removes ANSI escape codes from a string
-func (m InteractiveTaskList) stripAnsiCodes(s string) string {
+func (m *InteractiveTaskList) stripAnsiCodes(s string) string {
 	// Simple implementation - removes common ANSI codes
 	result := s
 	for {
@@ -176,7 +208,7 @@ func (m *InteractiveTaskList) getAvailableProjects() []string {
 	return projects
 }
 
-func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// Update terminal dimensions
@@ -225,6 +257,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Apply the date change
 				if m.cursor < len(m.tasks) {
 					taskID := m.tasks[m.cursor].ID
+					taskUpdated := m.tasks[m.cursor].Updated
 					for i := range m.allTasks {
 						if m.allTasks[i].ID == taskID {
 							// Parse the date
@@ -241,18 +274,25 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								}
 							}
 
-							// Update the task
-							switch m.dateEditMode {
-							case "deadline":
-								m.allTasks[i].DueDate = parsedDate
-							case "scheduled":
-								m.allTasks[i].ScheduledDate = parsedDate
+							if err := m.taskFile.UpdateTaskWithConflictCheck(taskID, taskUpdated, func(t *Task) {
+								// Update the task
+								switch m.dateEditMode {
+								case "deadline":
+									t.DueDate = parsedDate
+								case "scheduled":
+									t.ScheduledDate = parsedDate
+								}
+								t.Updated = time.Now()
+							}); err != nil {
+								m.err = fmt.Errorf("failed to save task: %w", err)
 							}
-							m.allTasks[i].Updated = time.Now()
 
 							// Update filtered view
-							m.applyFilters()
-							m.modified = true
+							if err := m.ReloadTasks(); err != nil {
+								m.err = fmt.Errorf("failed to reload tasks: %w", err)
+								return m, tea.ClearScreen
+							}
+
 							break
 						}
 					}
@@ -386,11 +426,30 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tea.KeyEnter:
 				// Create new task
 				if m.inputBuffer != "" {
-					m.newTaskTitle = m.inputBuffer
+					newTaskTitle := m.inputBuffer
 					m.inputMode = false
 					m.inputBuffer = ""
 					m.inputCursor = 0
-					return m, tea.Quit // Exit to create the task
+
+					// Handle new task creation
+					// Extract projects and scheduled/due dates from title
+					newTask := ParseTask(newTaskTitle)
+
+					if err := m.taskFile.AddTask(newTask); err != nil {
+						slog.Error("Failed to create task",
+							slog.Any("error", err))
+						m.err = fmt.Errorf("failed to create task: %w", err)
+						return m, tea.ClearScreen
+					}
+
+					if err := m.ReloadTasks(); err != nil {
+						slog.Error("Failed to reload tasks after adding new task",
+							slog.Any("error", err))
+						m.err = fmt.Errorf("failed to reload tasks: %w", err)
+						return m, tea.ClearScreen
+					}
+
+					return m, tea.ClearScreen
 				}
 			case tea.KeyEsc:
 				// Cancel input
@@ -525,38 +584,26 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Quick toggle between TODO and DONE (most common transition)
 			if m.cursor < len(m.tasks) {
 				// Find the task in allTasks and update it
-				taskID := m.tasks[m.cursor].ID
+				task := m.tasks[m.cursor]
 				for i := range m.allTasks {
-					if m.allTasks[i].ID == taskID {
-						if m.allTasks[i].Status == StatusDONE {
-							m.allTasks[i].SetStatus(StatusTODO)
-						} else {
-							m.allTasks[i].SetStatus(StatusDONE)
+					if m.allTasks[i].ID == task.ID {
+						if err := m.taskFile.UpdateTaskWithConflictCheck(task.ID, task.Updated, func(t *Task) {
+							if t.Status == StatusDONE {
+								t.SetStatus(StatusTODO)
+							} else {
+								t.SetStatus(StatusDONE)
+							}
+						}); err != nil {
+							m.err = fmt.Errorf("failed to save task: %w", err)
+							return m, tea.ClearScreen
 						}
 
 						// Re-sort and update filtered view
-						SortTasks(m.allTasks)
-						m.applyFilters()
-
-						// Find the task's new position and move cursor there
-						foundTask := false
-						for j, task := range m.tasks {
-							if task.ID == taskID {
-								m.cursor = j
-								foundTask = true
-								break
-							}
+						if err := m.ReloadTasks(); err != nil {
+							m.err = fmt.Errorf("failed to reload tasks: %w", err)
+							return m, tea.ClearScreen
 						}
 
-						// If task is no longer visible (e.g., DONE task hidden), keep cursor at same position
-						if !foundTask {
-							// Ensure cursor is within bounds
-							if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-								m.cursor = len(m.tasks) - 1
-							}
-						}
-
-						m.modified = true
 						break
 					}
 				}
@@ -591,8 +638,23 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "e":
 			// Edit task (open editor)
-			if m.cursor < len(m.tasks) {
-				return m, tea.Quit
+			if m.cursor >= 0 && m.cursor < len(m.tasks) {
+				taskToEdit := &m.tasks[m.cursor]
+				originalUpdated := taskToEdit.Updated
+				if err := editTaskNoteInteractive(taskToEdit); err != nil {
+					m.err = err
+					return m, nil
+				}
+
+				// Update the task with conflict check
+				if err := m.taskFile.UpdateTaskWithConflictCheck(taskToEdit.ID, originalUpdated, func(t *Task) {
+					t.Title = taskToEdit.Title
+					t.Projects = taskToEdit.Projects
+					t.Note = taskToEdit.Note
+				}); err != nil {
+					m.err = fmt.Errorf("failed to save task: %w", err)
+				}
+				return m, nil
 			}
 
 		case "d":
@@ -634,26 +696,18 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.confirmDelete && m.cursor < len(m.tasks) {
 				// Mark task as deleted
 				taskID := m.tasks[m.cursor].ID
-				m.deletedTaskIDs = append(m.deletedTaskIDs, taskID)
 
-				// Remove from allTasks
-				newAllTasks := []Task{}
-				for _, t := range m.allTasks {
-					if t.ID != taskID {
-						newAllTasks = append(newAllTasks, t)
-					}
-				}
-				m.allTasks = newAllTasks
-
-				// Update filtered view
-				m.applyFilters()
-
-				// Adjust cursor if necessary
-				if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-					m.cursor = len(m.tasks) - 1
+				if err := m.taskFile.DeleteTask(taskID); err != nil {
+					m.err = fmt.Errorf("failed to delete task: %w", err)
+					m.confirmDelete = false
+					return m, tea.ClearScreen
 				}
 
-				m.modified = true
+				if err := m.ReloadTasks(); err != nil {
+					m.err = fmt.Errorf("failed to reload tasks: %w", err)
+					m.confirmDelete = false
+					return m, tea.ClearScreen
+				}
 				m.confirmDelete = false
 			}
 
@@ -704,8 +758,14 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "r":
 			// Reload tasks
 			if !m.confirmDelete && !m.inputMode {
-				m.shouldReload = true
-				return m, tea.Quit
+				slog.Info("Reloading tasks")
+				tasks, err := m.taskFile.LoadTasks()
+				if err != nil {
+					slog.Error("Failed to reload tasks",
+						slog.Any("error", err))
+				}
+				m.allTasks = tasks
+				return m, tea.ClearScreen
 			}
 
 		case "p":
@@ -728,56 +788,33 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "s":
 			// Cycle through statuses
 			if !m.confirmDelete && !m.inputMode && m.cursor < len(m.tasks) {
-				taskIdx := -1
-				for i, t := range m.allTasks {
-					if t.ID == m.tasks[m.cursor].ID {
-						taskIdx = i
+				task := m.tasks[m.cursor]
+
+				// Save the task ID before any changes
+				allStatuses := GetAllStatuses()
+				currentStatus := task.Status
+
+				// Find the current status index
+				currentIdx := 0
+				for i, s := range allStatuses {
+					if s == currentStatus {
+						currentIdx = i
 						break
 					}
 				}
 
-				if taskIdx >= 0 {
-					// Save the task ID before any changes
-					currentTaskID := m.allTasks[taskIdx].ID
-					currentStatus := m.allTasks[taskIdx].Status
-					allStatuses := GetAllStatuses()
+				// Cycle to next status
+				nextIdx := (currentIdx + 1) % len(allStatuses)
+				if err := m.taskFile.UpdateTaskWithConflictCheck(task.ID, task.Updated, func(t *Task) {
+					t.SetStatus(allStatuses[nextIdx])
+				}); err != nil {
+					m.err = fmt.Errorf("failed to save task: %w", err)
+					return m, tea.ClearScreen
+				}
 
-					// Find current status index
-					currentIdx := 0
-					for i, s := range allStatuses {
-						if s == currentStatus {
-							currentIdx = i
-							break
-						}
-					}
-
-					// Cycle to next status
-					nextIdx := (currentIdx + 1) % len(allStatuses)
-					m.allTasks[taskIdx].SetStatus(allStatuses[nextIdx])
-
-					// Re-sort and update filtered view
-					SortTasks(m.allTasks)
-					m.applyFilters()
-
-					// Find the task's new position and move cursor there
-					foundTask := false
-					for i, task := range m.tasks {
-						if task.ID == currentTaskID {
-							m.cursor = i
-							foundTask = true
-							break
-						}
-					}
-
-					// If task is no longer visible (e.g., DONE task hidden), keep cursor at same position
-					if !foundTask {
-						// Ensure cursor is within bounds
-						if m.cursor >= len(m.tasks) && len(m.tasks) > 0 {
-							m.cursor = len(m.tasks) - 1
-						}
-					}
-
-					m.modified = true
+				if err := m.ReloadTasks(); err != nil {
+					m.err = fmt.Errorf("failed to reload tasks: %w", err)
+					return m, tea.ClearScreen
 				}
 			}
 
@@ -794,21 +831,17 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if taskIdx >= 0 {
-					m.allTasks[taskIdx].IncreasePriority()
-
-					// Re-sort and update filtered view
-					SortTasks(m.allTasks)
-					m.applyFilters()
-
-					// Find the task's new position and move cursor there
-					for i, task := range m.tasks {
-						if task.ID == currentTaskID {
-							m.cursor = i
-							break
-						}
+					if err := m.taskFile.UpdateTaskWithConflictCheck(m.allTasks[taskIdx].ID, m.allTasks[taskIdx].Updated, func(t *Task) {
+						t.IncreasePriority()
+					}); err != nil {
+						m.err = fmt.Errorf("failed to save task: %w", err)
+						return m, tea.ClearScreen
 					}
 
-					m.modified = true
+					if err := m.ReloadTasks(); err != nil {
+						m.err = fmt.Errorf("failed to reload tasks: %w", err)
+						return m, tea.ClearScreen
+					}
 				}
 			}
 
@@ -825,21 +858,17 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if taskIdx >= 0 {
-					m.allTasks[taskIdx].DecreasePriority()
-
-					// Re-sort and update filtered view
-					SortTasks(m.allTasks)
-					m.applyFilters()
-
-					// Find the task's new position and move cursor there
-					for i, task := range m.tasks {
-						if task.ID == currentTaskID {
-							m.cursor = i
-							break
-						}
+					if err := m.taskFile.UpdateTaskWithConflictCheck(m.allTasks[taskIdx].ID, m.allTasks[taskIdx].Updated, func(t *Task) {
+						t.DecreasePriority()
+					}); err != nil {
+						m.err = fmt.Errorf("failed to save task: %w", err)
+						return m, tea.ClearScreen
 					}
 
-					m.modified = true
+					if err := m.ReloadTasks(); err != nil {
+						m.err = fmt.Errorf("failed to reload tasks: %w", err)
+						return m, tea.ClearScreen
+					}
 				}
 			}
 		}
@@ -848,7 +877,7 @@ func (m InteractiveTaskList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m InteractiveTaskList) View() string {
+func (m *InteractiveTaskList) View() string {
 	if m.quit {
 		return ""
 	}
@@ -857,29 +886,12 @@ func (m InteractiveTaskList) View() string {
 		return "No tasks found.\n\nPress q to quit."
 	}
 
+	header := lipgloss.NewStyle().MaxWidth(m.width).Render(m.renderHeader()) + "\n"
+	footer := lipgloss.NewStyle().MaxWidth(m.width).Render(m.renderFooter())
+
 	var s strings.Builder
-	if m.projectFilter != "" {
-		// Show project filter with color and count
-		projectColor := GetProjectColor(m.projectFilter)
-		totalCount := len(m.tasks)
-		// Calculate hidden count only for this project
-		allProjectTasks := FilterTasksByProject(m.allTasks, m.projectFilter)
-		hiddenCount := len(allProjectTasks) - totalCount
-		s.WriteString(fmt.Sprintf("Tasks for project: %s+%s\x1b[0m", projectColor, m.projectFilter))
-		if totalCount > 0 || hiddenCount > 0 {
-			s.WriteString(fmt.Sprintf(" (%d task", totalCount))
-			if totalCount != 1 {
-				s.WriteString("s")
-			}
-			if hiddenCount > 0 {
-				s.WriteString(fmt.Sprintf(", %d hidden", hiddenCount))
-			}
-			s.WriteString(")")
-		}
-		s.WriteString("\n\n")
-	} else {
-		s.WriteString("Tasks:\n\n")
-	}
+
+	s.WriteString(header)
 
 	for i, task := range m.tasks {
 		cursor := "  "
@@ -980,6 +992,41 @@ func (m InteractiveTaskList) View() string {
 		s.WriteString(line)
 	}
 
+	s.WriteString(footer)
+
+	return s.String()
+}
+
+func (m *InteractiveTaskList) renderHeader() string {
+	var s strings.Builder
+	if m.projectFilter != "" {
+		// Show project filter with color and count
+		projectColor := GetProjectColor(m.projectFilter)
+		totalCount := len(m.tasks)
+		// Calculate hidden count only for this project
+		allProjectTasks := FilterTasksByProject(m.allTasks, m.projectFilter)
+		hiddenCount := len(allProjectTasks) - totalCount
+		s.WriteString(fmt.Sprintf("Tasks for project: %s+%s\x1b[0m", projectColor, m.projectFilter))
+		if totalCount > 0 || hiddenCount > 0 {
+			s.WriteString(fmt.Sprintf(" (%d task", totalCount))
+			if totalCount != 1 {
+				s.WriteString("s")
+			}
+			if hiddenCount > 0 {
+				s.WriteString(fmt.Sprintf(", %d hidden", hiddenCount))
+			}
+			s.WriteString(")")
+		}
+		s.WriteString("\n")
+	} else {
+		s.WriteString("Tasks:\n")
+	}
+	return s.String()
+}
+
+func (m *InteractiveTaskList) renderFooter() string {
+	var s strings.Builder
+
 	if m.searchMode {
 		// Show search input
 		searchRunes := []rune(m.searchQuery)
@@ -1071,7 +1118,7 @@ func (m InteractiveTaskList) View() string {
 
 		s.WriteString("\n↑/k: up • ↓/j: down • Enter: select • Esc/q: cancel")
 	} else if m.confirmDelete {
-		s.WriteString("\n\n⚠️  Delete this task? (y/n)")
+		s.WriteString(fmt.Sprintf("\n\n⚠️  Delete this task? (y/n): %s", m.tasks[m.cursor].Title))
 	} else {
 		s.WriteString("\n↑/k: up • ↓/j: down • g/G: first/last • +/-: priority • s: status • D: deadline • S: scheduled • space: toggle done • /: search")
 		if m.searchQuery != "" && !m.searchMode {
@@ -1081,43 +1128,13 @@ func (m InteractiveTaskList) View() string {
 		if m.showAll {
 			s.WriteString(" [ALL]")
 		}
-		if m.modified {
-			s.WriteString(" • *modified*")
-		}
+	}
+
+	if m.err != nil {
+		s.WriteString("\n\n\x1b[91mError: " + m.err.Error() + "\x1b[0m\n")
 	}
 
 	return s.String()
-}
-
-func (m InteractiveTaskList) ShouldEdit() bool {
-	return !m.quit && m.cursor >= 0 && m.cursor < len(m.tasks)
-}
-
-func (m InteractiveTaskList) GetSelectedTask() *Task {
-	if m.cursor >= 0 && m.cursor < len(m.tasks) {
-		return &m.tasks[m.cursor]
-	}
-	return nil
-}
-
-func (m InteractiveTaskList) GetTasks() []Task {
-	return m.allTasks
-}
-
-func (m InteractiveTaskList) IsModified() bool {
-	return m.modified
-}
-
-func (m InteractiveTaskList) GetDeletedTaskIDs() []string {
-	return m.deletedTaskIDs
-}
-
-func (m InteractiveTaskList) GetNewTaskTitle() string {
-	return m.newTaskTitle
-}
-
-func (m InteractiveTaskList) ShouldReload() bool {
-	return m.shouldReload
 }
 
 // updateMatches updates which tasks match the current search query
@@ -1212,21 +1229,100 @@ func (m *InteractiveTaskList) jumpToPrevMatch() {
 	}
 }
 
-func ShowInteractiveTaskListWithFilter(tasks []Task, projectFilter string) ([]Task, bool, *Task, []string, string, bool, error) {
-	model := NewInteractiveTaskListWithFilter(tasks, projectFilter)
-	p := tea.NewProgram(model)
-
-	result, err := p.Run()
+func editTaskNoteInteractive(task *Task) error {
+	// Create temp file with Markdown extension
+	tmpfile, err := os.CreateTemp("", "task-*.md")
 	if err != nil {
-		return nil, false, nil, nil, "", false, err
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer func() { _ = os.Remove(tmpfile.Name()) }()
+
+	// Load configuration
+	config, err := LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	finalModel := result.(InteractiveTaskList)
+	// Pre-fill with current title and note
+	noteContent := task.Note
 
-	// Check if user wants to edit a task
-	if finalModel.ShouldEdit() {
-		return finalModel.GetTasks(), finalModel.IsModified(), finalModel.GetSelectedTask(), finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
+	// Add timestamp if enabled in config
+	if config.Editor.AddTimestamp {
+		now := time.Now()
+		// Format: YYYY-MM-DD(Day) HH:MM
+		timestamp := now.Format("\n\n## 2006-01-02(Mon) 15:04\n\n")
+
+		// Append timestamp to existing note or create new note with timestamp
+		if noteContent != "" {
+			noteContent += timestamp
+		} else {
+			noteContent = timestamp
+		}
 	}
 
-	return finalModel.GetTasks(), finalModel.IsModified(), nil, finalModel.GetDeletedTaskIDs(), finalModel.GetNewTaskTitle(), finalModel.ShouldReload(), nil
+	content := fmt.Sprintf("# %s\n\n%s", task.Title, noteContent)
+	if _, err := tmpfile.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write to temp file: %w", err)
+	}
+	_ = tmpfile.Close()
+
+	// Open editor
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "vim"
+	}
+	slog.Debug("Opening editor",
+		slog.String("editor", editor),
+		slog.String("file", tmpfile.Name()))
+
+	cmd := exec.Command(editor, tmpfile.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("editor failed: %w", err)
+	}
+
+	// Read back the edited content
+	editedContent, err := os.ReadFile(tmpfile.Name())
+	if err != nil {
+		return fmt.Errorf("failed to read edited file: %w", err)
+	}
+
+	// Parse the content
+	lines := strings.Split(string(editedContent), "\n")
+	newTitle := task.Title // Default to original title
+	noteLines := []string{}
+	inNote := false
+
+	for _, line := range lines {
+		if !inNote && strings.HasPrefix(line, "# ") {
+			// Extract title from first heading
+			newTitle = strings.TrimSpace(strings.TrimPrefix(line, "#"))
+			inNote = true
+		} else if inNote {
+			noteLines = append(noteLines, line)
+		}
+	}
+
+	// Trim leading empty lines from note
+	for len(noteLines) > 0 && strings.TrimSpace(noteLines[0]) == "" {
+		noteLines = noteLines[1:]
+	}
+
+	// Trim trailing empty lines from note
+	for len(noteLines) > 0 && strings.TrimSpace(noteLines[len(noteLines)-1]) == "" {
+		noteLines = noteLines[:len(noteLines)-1]
+	}
+
+	// Extract projects from the new title
+	cleanTitle, projects := ExtractProjectsFromTitle(newTitle)
+
+	// Update task
+	task.Title = cleanTitle
+	task.Projects = projects
+	task.Note = strings.Join(noteLines, "\n")
+
+	return nil
 }

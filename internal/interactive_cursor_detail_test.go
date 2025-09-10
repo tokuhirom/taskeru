@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDetailedStatusCycle(t *testing.T) {
@@ -14,13 +15,11 @@ func TestDetailedStatusCycle(t *testing.T) {
 		*NewTask("Task 3"),
 	}
 
-	// All tasks start as TODO
-	for i := range tasks {
-		tasks[i].Status = StatusTODO
-		tasks[i].Priority = "medium"
-	}
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
 
-	model := NewInteractiveTaskList(tasks)
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	// Move cursor to Task 2 (index 1)
 	model.cursor = 1
@@ -29,7 +28,7 @@ func TestDetailedStatusCycle(t *testing.T) {
 
 	// Press 's' to change to DOING
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	t.Logf("\nAfter pressing 's' (should be DOING):")
 	t.Logf("  Cursor position: %d", interactiveModel.cursor)

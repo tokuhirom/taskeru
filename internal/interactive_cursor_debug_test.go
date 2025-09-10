@@ -4,22 +4,17 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDebugCursorBehavior(t *testing.T) {
-	// Create test tasks
-	tasks := []Task{
-		*NewTask("Task 1"),
-		*NewTask("Task 2"),
-		*NewTask("Task 3"),
-	}
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(ParseTask("Task 1")))
+	require.NoError(t, taskFile.AddTask(ParseTask("Task 2")))
+	require.NoError(t, taskFile.AddTask(ParseTask("Task 3")))
 
-	// All tasks start as TODO
-	for i := range tasks {
-		tasks[i].Status = StatusTODO
-	}
-
-	model := NewInteractiveTaskList(tasks)
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err, "NewInteractiveTaskListWithFilter()")
 
 	t.Logf("Initial state: cursor=%d, tasks=%d", model.cursor, len(model.tasks))
 	for i, task := range model.tasks {
@@ -32,7 +27,7 @@ func TestDebugCursorBehavior(t *testing.T) {
 
 	// Toggle Task 2 to DONE with space
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeySpace})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	t.Logf("\nAfter toggling to DONE:")
 	t.Logf("  cursor=%d, tasks=%d", interactiveModel.cursor, len(interactiveModel.tasks))
@@ -48,19 +43,13 @@ func TestDebugCursorBehavior(t *testing.T) {
 }
 
 func TestDebugStatusCycle(t *testing.T) {
-	// Create test tasks
-	tasks := []Task{
-		*NewTask("Task 1"),
-		*NewTask("Task 2"),
-		*NewTask("Task 3"),
-	}
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(ParseTask("Task 1")))
+	require.NoError(t, taskFile.AddTask(ParseTask("Task 2")))
+	require.NoError(t, taskFile.AddTask(ParseTask("Task 3")))
 
-	// All tasks start as TODO
-	for i := range tasks {
-		tasks[i].Status = StatusTODO
-	}
-
-	model := NewInteractiveTaskList(tasks)
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Move cursor to Task 2 (index 1)
 	model.cursor = 1
@@ -70,14 +59,13 @@ func TestDebugStatusCycle(t *testing.T) {
 	statuses := GetAllStatuses()
 	for _, expectedStatus := range statuses[1:] { // Skip TODO since we start there
 		updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-		interactiveModel := updatedModel.(InteractiveTaskList)
-		model = &interactiveModel
+		interactiveModel := updatedModel.(*InteractiveTaskList)
 
 		t.Logf("\nAfter changing to %s:", expectedStatus)
-		t.Logf("  cursor=%d, tasks=%d", model.cursor, len(model.tasks))
+		t.Logf("  cursor=%d, tasks=%d", interactiveModel.cursor, len(interactiveModel.tasks))
 
-		if model.cursor < len(model.tasks) {
-			currentTask := model.tasks[model.cursor]
+		if interactiveModel.cursor < len(interactiveModel.tasks) {
+			currentTask := interactiveModel.tasks[interactiveModel.cursor]
 			t.Logf("  Cursor points to: %s - %s", currentTask.Title, currentTask.Status)
 		}
 	}

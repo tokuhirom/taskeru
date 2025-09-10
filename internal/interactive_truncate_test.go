@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTruncateTaskLine(t *testing.T) {
@@ -61,7 +62,11 @@ func TestTruncateTaskLine(t *testing.T) {
 			task.Projects = tt.projects
 			task.Status = StatusTODO
 
-			model := NewInteractiveTaskList([]Task{*task})
+			taskFile := NewTaskFileForTesting(t)
+			require.NoError(t, taskFile.AddTask(task))
+
+			model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+			require.NoError(t, err)
 			model.width = tt.width
 
 			// Simulate the truncation
@@ -93,7 +98,10 @@ func TestTruncateTaskLine(t *testing.T) {
 
 func TestWindowSizeUpdate(t *testing.T) {
 	task := NewTask("Test task")
-	model := NewInteractiveTaskList([]Task{*task})
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(task))
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Initial dimensions should be defaults
 	if model.width != 80 || model.height != 24 {
@@ -106,14 +114,16 @@ func TestWindowSizeUpdate(t *testing.T) {
 		Height: 40,
 	})
 
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 	if interactiveModel.width != 120 || interactiveModel.height != 40 {
 		t.Errorf("Expected updated dimensions 120x40, got %dx%d", interactiveModel.width, interactiveModel.height)
 	}
 }
 
 func TestStripAnsiCodes(t *testing.T) {
-	model := NewInteractiveTaskList([]Task{})
+	taskFile := NewTaskFileForTesting(t)
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	tests := []struct {
 		input    string

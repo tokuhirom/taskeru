@@ -29,7 +29,7 @@ func TestListCommandWithProjectFilter(t *testing.T) {
 	tasks[4].Projects = []string{"personal", "home"}
 
 	// Save tasks
-	err := taskFile.SaveTasks(tasks)
+	err := taskFile.AddTasks(tasks)
 	if err != nil {
 		t.Fatalf("Failed to save test tasks: %v", err)
 	}
@@ -159,7 +159,7 @@ func TestListCommandWithCompletedTasksAndProjectFilter(t *testing.T) {
 	tasks[3].CompletedAt = &oldTime
 
 	// Save tasks
-	err := taskFile.SaveTasks(tasks)
+	err := taskFile.AddTasks(tasks)
 	if err != nil {
 		t.Fatalf("Failed to save test tasks: %v", err)
 	}

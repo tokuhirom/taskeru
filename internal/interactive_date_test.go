@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDateEditMode(t *testing.T) {
@@ -16,30 +17,38 @@ func TestDateEditMode(t *testing.T) {
 		*NewTask("Task with scheduled date"),
 	}
 
+	tasks[0].Priority = "A"
+
 	// Set existing dates
 	deadline := time.Now().AddDate(0, 0, 7) // 7 days from now
 	tasks[1].DueDate = &deadline
+	tasks[1].Priority = "B"
 
 	scheduled := time.Now().AddDate(0, 0, 3) // 3 days from now
 	tasks[2].ScheduledDate = &scheduled
+	tasks[2].Priority = "C"
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
+
+	require.Equal(t, 0, model.cursor)
+	require.Equal(t, "", model.dateEditMode)
+	require.Empty(t, model.dateEditBuffer, "Date edit buffer should be empty for task without deadline")
 
 	// Test entering deadline edit mode with D
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
-	if interactiveModel.dateEditMode != "deadline" {
-		t.Error("Should be in deadline edit mode after pressing D")
-	}
-
-	if interactiveModel.dateEditBuffer != "" {
-		t.Error("Date edit buffer should be empty for task without deadline")
-	}
+	require.Equal(t, 0, model.cursor)
+	require.Equal(t, "deadline", interactiveModel.dateEditMode)
+	require.Empty(t, interactiveModel.dateEditBuffer, "Date edit buffer should be empty for task without deadline")
 
 	// Test ESC to cancel date edit
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditMode != "" {
 		t.Error("Should exit date edit mode after pressing ESC")
@@ -47,15 +56,11 @@ func TestDateEditMode(t *testing.T) {
 
 	// Test entering scheduled date edit mode with S
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditMode != "scheduled" {
 		t.Error("Should be in scheduled edit mode after pressing S")
 	}
-
-	// Cancel again
-	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
 }
 
 func TestDateEditWithExistingDates(t *testing.T) {
@@ -70,11 +75,15 @@ func TestDateEditWithExistingDates(t *testing.T) {
 	scheduled := time.Date(2025, 12, 25, 0, 0, 0, 0, time.Local)
 	tasks[0].ScheduledDate = &scheduled
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Test D key pre-fills existing deadline
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditBuffer != "2025-12-31" {
 		t.Errorf("Date edit buffer should contain existing deadline, got %q", interactiveModel.dateEditBuffer)
@@ -86,10 +95,10 @@ func TestDateEditWithExistingDates(t *testing.T) {
 
 	// Cancel and test S key pre-fills existing scheduled date
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditBuffer != "2025-12-25" {
 		t.Errorf("Date edit buffer should contain existing scheduled date, got %q", interactiveModel.dateEditBuffer)
@@ -101,16 +110,20 @@ func TestDateEditInput(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Type "today"
 	for _, ch := range "today" {
 		updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
-		interactiveModel = updatedModel.(InteractiveTaskList)
+		interactiveModel = updatedModel.(*InteractiveTaskList)
 	}
 
 	if interactiveModel.dateEditBuffer != "today" {
@@ -119,7 +132,7 @@ func TestDateEditInput(t *testing.T) {
 
 	// Test backspace
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditBuffer != "toda" {
 		t.Errorf("After backspace, buffer should be 'toda', got %q", interactiveModel.dateEditBuffer)
@@ -127,14 +140,14 @@ func TestDateEditInput(t *testing.T) {
 
 	// Test cursor movement
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyCtrlA})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditCursor != 0 {
 		t.Error("Ctrl+A should move cursor to beginning")
 	}
 
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditCursor != len("toda") {
 		t.Error("Ctrl+E should move cursor to end")
@@ -146,28 +159,28 @@ func TestDateEditApply(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Type "2025-12-31"
 	for _, ch := range "2025-12-31" {
 		updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
-		interactiveModel = updatedModel.(InteractiveTaskList)
+		interactiveModel = updatedModel.(*InteractiveTaskList)
 	}
 
 	// Apply with Enter
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditMode != "" {
 		t.Error("Should exit date edit mode after pressing Enter")
-	}
-
-	if !interactiveModel.modified {
-		t.Error("Model should be marked as modified after applying date")
 	}
 
 	// Check that the task was updated
@@ -187,22 +200,25 @@ func TestScheduledDateEditApply(t *testing.T) {
 	tasks := []Task{
 		*NewTask("Test task"),
 	}
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
 
-	model := NewInteractiveTaskList(tasks)
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter scheduled date edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Type "tomorrow"
 	for _, ch := range "tomorrow" {
 		updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
-		interactiveModel = updatedModel.(InteractiveTaskList)
+		interactiveModel = updatedModel.(*InteractiveTaskList)
 	}
 
 	// Apply with Enter
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditMode != "" {
 		t.Error("Should exit date edit mode after pressing Enter")
@@ -230,29 +246,29 @@ func TestDateEditClearDate(t *testing.T) {
 	deadline := time.Now().AddDate(0, 0, 7)
 	tasks[0].DueDate = &deadline
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter deadline edit mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	// Clear the buffer
 	for interactiveModel.dateEditCursor > 0 {
 		updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-		interactiveModel = updatedModel.(InteractiveTaskList)
+		interactiveModel = updatedModel.(*InteractiveTaskList)
 	}
 
 	// Apply empty date with Enter
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	// Check that the deadline was cleared
 	if interactiveModel.allTasks[0].DueDate != nil {
 		t.Error("Task deadline should be cleared when applying empty date")
-	}
-
-	if !interactiveModel.modified {
-		t.Error("Model should be marked as modified after clearing date")
 	}
 }
 
@@ -261,7 +277,11 @@ func TestDateEditModeView(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 	model.dateEditMode = "deadline"
 	model.dateEditBuffer = "2025-12-31"
 	model.dateEditCursor = 5 // Position after "2025-"
@@ -300,11 +320,15 @@ func TestDateEditDoesNotTriggerDuringDelete(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTask(&tasks[0]))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Enter delete confirmation mode
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	if !interactiveModel.confirmDelete {
 		t.Error("Should be in delete confirmation mode after pressing d")
@@ -312,7 +336,7 @@ func TestDateEditDoesNotTriggerDuringDelete(t *testing.T) {
 
 	// Try to enter date edit mode with D (should not work)
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditMode != "" {
 		t.Error("Should not enter date edit mode when delete confirmation is active")
@@ -320,11 +344,11 @@ func TestDateEditDoesNotTriggerDuringDelete(t *testing.T) {
 
 	// Cancel delete
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	// Now D should work
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.dateEditMode != "deadline" {
 		t.Error("Should enter date edit mode after canceling delete confirmation")

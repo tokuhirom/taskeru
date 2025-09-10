@@ -2,6 +2,7 @@ package internal
 
 import (
 	"testing"
+	"time"
 )
 
 func TestFilterTasksByProject(t *testing.T) {
@@ -174,4 +175,82 @@ func TestTaskStatusMethods(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestSortTasks(t *testing.T) {
+	now := time.Now()
+	testCases := []struct {
+		name      string
+		tasks     []Task
+		expectID0 string
+		expectID1 string
+	}{
+		{
+			name: "Active tasks come before completed tasks",
+			tasks: []Task{
+				{ID: "1", Status: StatusTODO, Priority: "A", Updated: now},
+				{ID: "2", Status: StatusDONE, Priority: "A", Updated: now},
+			},
+			expectID0: "1", expectID1: "2",
+		},
+		{
+			name: "Priority A comes before Priority B (active)",
+			tasks: []Task{
+				{ID: "1", Status: StatusTODO, Priority: "B", Updated: now},
+				{ID: "2", Status: StatusTODO, Priority: "A", Updated: now},
+			},
+			expectID0: "2", expectID1: "1",
+		},
+		{
+			name: "No priority sorts between C and D (active)",
+			tasks: []Task{
+				{ID: "1", Status: StatusTODO, Priority: "", Updated: now},
+				{ID: "2", Status: StatusTODO, Priority: "C", Updated: now},
+			},
+			expectID0: "2", expectID1: "1",
+		},
+		{
+			name: "Updated: newer comes first if priority and status are same (active)",
+			tasks: []Task{
+				{ID: "a", Status: StatusTODO, Priority: "A", Updated: now.Add(-1 * time.Hour)},
+				{ID: "b", Status: StatusTODO, Priority: "A", Updated: now.Add(-2 * time.Hour)},
+			},
+			expectID0: "a", expectID1: "b",
+		},
+		{
+			name: "ID: larger ID comes first if all else is equal (active)",
+			tasks: []Task{
+				{ID: "z", Status: StatusTODO, Priority: "A", Updated: now},
+				{ID: "y", Status: StatusTODO, Priority: "A", Updated: now},
+			},
+			expectID0: "z", expectID1: "y",
+		},
+		{
+			name: "Completed: larger ID comes first",
+			tasks: []Task{
+				{ID: "z", Status: StatusDONE, Priority: "A", Updated: now},
+				{ID: "y", Status: StatusDONE, Priority: "A", Updated: now},
+			},
+			expectID0: "z", expectID1: "y",
+		},
+		{
+			name: "Active: priority, updated, then ID (all different)",
+			tasks: []Task{
+				{ID: "1", Status: StatusTODO, Priority: "B", Updated: now.Add(-2 * time.Hour)},
+				{ID: "2", Status: StatusTODO, Priority: "A", Updated: now.Add(-1 * time.Hour)},
+			},
+			expectID0: "2", expectID1: "1",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tasks := make([]Task, len(tc.tasks))
+			copy(tasks, tc.tasks)
+			SortTasks(tasks)
+			if tasks[0].ID != tc.expectID0 || tasks[1].ID != tc.expectID1 {
+				t.Errorf("SortTasks() order = [%v, %v], want [%v, %v]", tasks[0].ID, tasks[1].ID, tc.expectID0, tc.expectID1)
+			}
+		})
+	}
 }

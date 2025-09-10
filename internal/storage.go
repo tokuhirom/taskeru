@@ -111,7 +111,7 @@ func (tf *TaskFile) LoadTasks() ([]Task, error) {
 	return tasks, nil
 }
 
-func (tf *TaskFile) SaveTasks(tasks []Task) error {
+func (tf *TaskFile) saveTasks(tasks []Task) error {
 	tempFile, err := os.CreateTemp(filepath.Dir(tf.Path), ".taskeru-*.tmp")
 	if err != nil {
 		return err
@@ -165,6 +165,10 @@ func (tf *TaskFile) lock() (*flock.Flock, error) {
 }
 
 func (tf *TaskFile) AddTask(task *Task) error {
+	return tf.AddTasks([]Task{*task})
+}
+
+func (tf *TaskFile) AddTasks(newTasks []Task) error {
 	lock, err := tf.lock()
 	if err != nil {
 		return fmt.Errorf("failed to lock task file: %w", err)
@@ -176,8 +180,8 @@ func (tf *TaskFile) AddTask(task *Task) error {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
 
-	tasks = append(tasks, *task)
-	return tf.SaveTasks(tasks)
+	tasks = append(tasks, newTasks...)
+	return tf.saveTasks(tasks)
 }
 
 func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated time.Time, updateFunc func(*Task)) error {
@@ -197,7 +201,8 @@ func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated t
 		if tasks[i].ID == taskID {
 			// Check if the task has been updated since we loaded it
 			if !tasks[i].Updated.Equal(originalUpdated) {
-				return fmt.Errorf("task has been modified by another process")
+				return fmt.Errorf("task has been modified by another process(%v != %v)",
+					tasks[i].Updated, originalUpdated)
 			}
 			updateFunc(&tasks[i])
 			tasks[i].Updated = time.Now()
@@ -210,11 +215,11 @@ func (tf *TaskFile) UpdateTaskWithConflictCheck(taskID string, originalUpdated t
 		return fmt.Errorf("task with ID %s not found", taskID)
 	}
 
-	return tf.SaveTasks(tasks)
+	return tf.saveTasks(tasks)
 }
 
-// SaveDeletedTasksToTrash saves deleted tasks to trash.json
-func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
+// saveDeletedTasksToTrash saves deleted tasks to trash.json
+func (tf *TaskFile) saveDeletedTasksToTrash(deletedTasks []Task) error {
 	if len(deletedTasks) == 0 {
 		return nil
 	}
@@ -289,6 +294,45 @@ func (tf *TaskFile) SaveDeletedTasksToTrash(deletedTasks []Task) error {
 
 	if err := os.Rename(tempPath, trashPath); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (tf *TaskFile) DeleteTask(taskID string) error {
+	lock, err := tf.lock()
+	if err != nil {
+		return fmt.Errorf("failed to lock task file: %w", err)
+	}
+	defer func() { _ = lock.Unlock() }()
+
+	tasks, err := tf.LoadTasks()
+	if err != nil {
+		return fmt.Errorf("failed to load tasks: %w", err)
+	}
+
+	var (
+		remaining []Task
+		deleted   []Task
+	)
+	for _, task := range tasks {
+		if task.ID == taskID {
+			deleted = append(deleted, task)
+		} else {
+			remaining = append(remaining, task)
+		}
+	}
+
+	if len(deleted) == 0 {
+		return fmt.Errorf("task with ID %s not found", taskID)
+	}
+
+	if err := tf.saveDeletedTasksToTrash(deleted); err != nil {
+		return fmt.Errorf("failed to save deleted tasks to trash: %w", err)
+	}
+
+	if err := tf.saveTasks(remaining); err != nil {
+		return fmt.Errorf("failed to save tasks: %w", err)
 	}
 
 	return nil

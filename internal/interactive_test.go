@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSearchMode(t *testing.T) {
@@ -22,11 +23,15 @@ func TestSearchMode(t *testing.T) {
 	tasks[2].Projects = []string{"work", "urgent"}
 	tasks[2].Note = "Review pull request"
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Test entering search mode with /
 	updatedModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
-	interactiveModel := updatedModel.(InteractiveTaskList)
+	interactiveModel := updatedModel.(*InteractiveTaskList)
 
 	if !interactiveModel.searchMode {
 		t.Error("Should be in search mode after pressing /")
@@ -36,7 +41,7 @@ func TestSearchMode(t *testing.T) {
 	searchQuery := "work"
 	for _, ch := range searchQuery {
 		updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}})
-		interactiveModel = updatedModel.(InteractiveTaskList)
+		interactiveModel = updatedModel.(*InteractiveTaskList)
 	}
 
 	if interactiveModel.searchQuery != searchQuery {
@@ -53,7 +58,7 @@ func TestSearchMode(t *testing.T) {
 
 	// Test ESC to exit search mode (but keep query)
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.searchMode {
 		t.Error("Should exit search mode after pressing ESC")
@@ -65,7 +70,7 @@ func TestSearchMode(t *testing.T) {
 
 	// Test ESC again to clear search when not in search mode
 	updatedModel, _ = interactiveModel.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	interactiveModel = updatedModel.(InteractiveTaskList)
+	interactiveModel = updatedModel.(*InteractiveTaskList)
 
 	if interactiveModel.searchQuery != "" {
 		t.Error("Search query should be cleared after pressing ESC when not in search mode")
@@ -89,7 +94,11 @@ func TestSearchHighlighting(t *testing.T) {
 	tasks[3].Note = "Critical bug in production"
 	tasks[4].Projects = []string{"meetings"}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	tests := []struct {
 		query         string
@@ -122,7 +131,11 @@ func TestSearchCaseSensitivity(t *testing.T) {
 		*NewTask("Something else"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
 
 	// Search should be case-insensitive
 	queries := []string{"important", "IMPORTANT", "Important", "iMpOrTaNt"}
@@ -142,7 +155,13 @@ func TestSearchModeView(t *testing.T) {
 		*NewTask("Test task"),
 	}
 
-	model := NewInteractiveTaskList(tasks)
+	taskFile := NewTaskFileForTesting(t)
+	require.NoError(t, taskFile.AddTasks(tasks))
+
+	model, err := NewInteractiveTaskListWithFilter(taskFile, "")
+	require.NoError(t, err)
+
+	// Enter search mode and set query and cursor
 	model.searchMode = true
 	model.searchQuery = "test"
 	model.searchCursor = 2
