@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/charmbracelet/bubbletea v0.24.2
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/go-chi/chi/v5 v5.2.4
+	github.com/go-chi/chi/v5 v5.4.0
 	github.com/gofrs/flock v0.12.1
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-runewidth v0.0.16
